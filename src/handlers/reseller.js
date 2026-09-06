@@ -135,7 +135,7 @@ function register(bot) {
   });
 }
 
-module.exports = { register, initSetupAdmins };
+module.exports = { register, registerGive, initSetupAdmins };
 
 /**
  * Register handler /give (untuk reseller)
