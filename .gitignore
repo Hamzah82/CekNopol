@@ -11,6 +11,13 @@ db/
 *.db
 *.sqlite
 
+# Dokumentasi internal (jangan commit)
+PRD.md
+APIdoc.txt
+ceknama.txt
+*.md
+*.txt
+
 # Logs
 *.log
 npm-debug.log*
