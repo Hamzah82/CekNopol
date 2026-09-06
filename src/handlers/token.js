@@ -52,6 +52,77 @@ function parseAdminTokenArgs(args) {
 }
 
 /**
+ * Parse argumen command list: /token list [halaman]
+ * @param {string} args - String argumen setelah /token
+ * @returns {{page: number}|null}
+ */
+function parseListArgs(args) {
+  if (!args) return { page: 1 };
+
+  const parts = args.trim().split(/\s+/);
+  // Format: list [halaman]
+  if (parts[0].toLowerCase() !== 'list') return null;
+
+  if (parts.length === 1) return { page: 1 };
+
+  const page = parseInt(parts[1], 10);
+  if (isNaN(page) || page < 1) return null;
+
+  return { page };
+}
+
+/**
+ * Format halaman list token untuk admin
+ * @param {Array<{userId: string, balance: number}>} allTokens - Semua data token
+ * @param {number} page - Halaman yang diminta
+ * @param {number} perPage - Item per halaman
+ * @returns {string} Pesan terformat
+ */
+function formatTokenList(allTokens, page, perPage) {
+  const totalUsers = allTokens.length;
+  const totalPages = Math.ceil(totalUsers / perPage) || 1;
+
+  // Clamp halaman
+  if (page > totalPages) page = totalPages;
+  if (page < 1) page = 1;
+
+  const start = (page - 1) * perPage;
+  const end = Math.min(start + perPage, totalUsers);
+  const pageItems = allTokens.slice(start, end);
+
+  // Hitung total token
+  const totalTokens = allTokens.reduce((sum, t) => sum + t.balance, 0);
+
+  const lines = [
+    `📋 <b>Daftar Token User</b>`,
+    `─────────────────────`,
+    ``,
+  ];
+
+  if (pageItems.length === 0) {
+    lines.push(`<i>Belum ada user yang memiliki token.</i>`);
+  } else {
+    for (let i = 0; i < pageItems.length; i++) {
+      const t = pageItems[i];
+      const num = start + i + 1;
+      lines.push(`<b>${num}.</b> <code>${t.userId}</code> — <b>${t.balance}</b> token`);
+    }
+  }
+
+  lines.push(``);
+  lines.push(`─────────────────────`);
+  lines.push(`📄 Halaman <b>${page}</b> / <b>${totalPages}</b>`);
+  lines.push(`👥 Total user: <b>${totalUsers}</b> | 💰 Total token: <b>${totalTokens}</b>`);
+
+  if (page < totalPages) {
+    lines.push(``);
+    lines.push(`➡️ Lanjut: <code>/token list ${page + 1}</code>`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Register handler /token
  * @param {import('telegraf').Telegraf} bot - Instance Telegraf
  */
@@ -70,10 +141,21 @@ function register(bot) {
         return;
       }
 
+      // ─── /token list [halaman] ─────────────────────────────
+      const listArgs = parseListArgs(args);
+      if (listArgs) {
+        const allTokens = tokenManager.getAllTokens();
+        const perPage = 10;
+        const formatted = formatTokenList(allTokens, listArgs.page, perPage);
+        ctx.reply(formatted, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // ─── /token <userId> +/-<jumlah> ───────────────────────
       const parsed = parseAdminTokenArgs(args);
       if (!parsed) {
         ctx.reply(
-          formatError('Format salah.\n\nGunakan:\n/token &lt;UserID&gt; +&lt;jumlah&gt;\n/token &lt;UserID&gt; -&lt;jumlah&gt;\n\nContoh: /token 123456789 +10'),
+          formatError('Format salah.\n\nGunakan:\n/token &lt;UserID&gt; +&lt;jumlah&gt;\n/token &lt;UserID&gt; -&lt;jumlah&gt;\n/token list [halaman]\n\nContoh:\n/token 123456789 +10\n/token list\n/token list 2'),
           { parse_mode: 'HTML' }
         );
         return;

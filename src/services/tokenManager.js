@@ -110,4 +110,15 @@ function setToken(userId, amount) {
   writeTokens(tokens);
 }
 
-module.exports = { setDbPath, getTokenBalance, deductToken, addToken, setToken, readTokens };
+module.exports = { setDbPath, getTokenBalance, deductToken, addToken, setToken, readTokens, getAllTokens };
+/**
+ * Dapatkan semua token user (untuk admin list)
+ * @returns {Array<{userId: string, balance: number}>} Array user dengan token
+ */
+function getAllTokens() {
+  const tokens = readTokens();
+  return Object.entries(tokens).map(([userId, balance]) => ({
+    userId,
+    balance,
+  }));
+}
