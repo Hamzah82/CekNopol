@@ -1,5 +1,5 @@
 /**
- * index.js — Entry point CekNopolBot
+ * index.js — Entry point XY Bot
  * 
  * Bot Telegram untuk cek data kendaraan berdasarkan plat nomor.
  * Menggunakan sistem token dan cache lokal.
@@ -23,7 +23,7 @@ if (!fs.existsSync(SETUP_FILE)) {
     apiUrl: 'https://api-url-anda.com',
     apiKey: 'API_KEY_ANDA',
     adminIds: [123456789],
-    botUsername: 'CekNopolBot',
+    botUsername: 'XY Bot',
     dbPath: './db',
   }, null, 2));
   process.exit(1);
@@ -57,7 +57,7 @@ for (const file of dbFiles) {
 }
 
 // ─── Buat & Jalankan Bot ─────────────────────────────────────
-console.log('🐢 CekNopolBot sedang dimulai...');
+console.log('🐢 XY Bot sedang dimulai...');
 console.log(`   API URL: ${config.apiUrl}`);
 console.log(`   Admin IDs: ${(config.adminIds || []).join(', ')}`);
 console.log(`   DB Path: ${dbPath}`);

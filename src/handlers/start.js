@@ -3,7 +3,7 @@
  */
 
 const WELCOME_MESSAGE = `
-🚗 <b>CEK NOPOL BOT</b>
+🚗 <b>XY BOT</b>
 
 Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 
@@ -40,7 +40,7 @@ Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 • Hubungi admin untuk top-up token
 
 ─────────────────────
-🐢 <i>CekNopolBot v1.0</i>
+🐢 <i>XY Bot v1.0</i>
 `.trim();
 
 /**

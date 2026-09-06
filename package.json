@@ -1,5 +1,5 @@
 {
-  "name": "ceknopol-bot",
+  "name": "xy-bot",
   "version": "1.0.0",
   "description": "Bot Telegram Cek Nopol Kendaraan dengan sistem token dan cache lokal",
   "main": "index.js",
