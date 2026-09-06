@@ -52,6 +52,7 @@ function createBot(config) {
   ceknamaHandler.register(bot);
   adminHandler.register(bot);
   resellerHandler.register(bot);
+  resellerHandler.registerGive(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {

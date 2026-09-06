@@ -3,6 +3,7 @@
  */
 
 const roleManager = require('../services/roleManager');
+const tokenManager = require('../services/tokenManager');
 const { formatSuccess, formatError } = require('../utils/format');
 
 /** @type {number[]} */
@@ -135,3 +136,81 @@ function register(bot) {
 }
 
 module.exports = { register, initSetupAdmins };
+
+/**
+ * Register handler /give (untuk reseller)
+ * @param {import('telegraf').Telegraf} bot - Instance Telegraf
+ */
+function registerGive(bot) {
+  bot.command('give', (ctx) => {
+    const userId = ctx.from.id;
+    const args = ctx.message.text.replace(/^\/give(@\w+)?\s*/, '').trim();
+
+    // 1. Cek apakah user adalah reseller
+    if (!roleManager.isReseller(userId)) {
+      ctx.reply(formatError('Kamu bukan reseller. Command ini hanya untuk reseller.'), { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 2. Validasi input
+    if (!args) {
+      ctx.reply(formatError('Gunakan: /give &lt;ID&gt; &lt;nominal&gt;\n\nContoh: /give 123456789 10'), { parse_mode: 'HTML' });
+      return;
+    }
+
+    const parts = args.split(/\s+/);
+    if (parts.length !== 2) {
+      ctx.reply(formatError('Format salah.\nGunakan: /give &lt;ID&gt; &lt;nominal&gt;\n\nContoh: /give 123456789 10'), { parse_mode: 'HTML' });
+      return;
+    }
+
+    const targetId = parseInt(parts[0], 10);
+    const nominal = parseInt(parts[1], 10);
+
+    // 3. Validasi ID
+    if (isNaN(targetId)) {
+      ctx.reply(formatError('ID user harus berupa angka.'), { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 4. Validasi nominal (tidak boleh <= 0)
+    if (isNaN(nominal) || nominal <= 0) {
+      ctx.reply(formatError('Nominal harus lebih besar dari 0.'), { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 5. Tidak boleh transfer ke diri sendiri
+    if (targetId === userId) {
+      ctx.reply(formatError('Kamu tidak bisa transfer token ke diri sendiri.'), { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 6. Cek saldo reseller
+    const balance = tokenManager.getTokenBalance(userId);
+    if (balance < nominal) {
+      ctx.reply(
+        formatError(`Saldo token tidak mencukupi.\n\nSaldo kamu: <b>${balance}</b> token\nDibutuhkan: <b>${nominal}</b> token`),
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    // 7. Transfer token
+    const result = tokenManager.transferToken(userId, targetId, nominal);
+
+    if (!result.success) {
+      ctx.reply(formatError(result.error || 'Gagal transfer token.'), { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 8. Konfirmasi
+    ctx.reply(
+      `✅ <b>Transfer Berhasil!</b>\n\n` +
+      `💰 Nominal: <b>${nominal}</b> token\n` +
+      `📤 Dari: <code>${userId}</code>\n` +
+      `📥 Ke: <code>${targetId}</code>\n\n` +
+      `💎 Sisa saldo kamu: <b>${result.fromBalance}</b> token`,
+      { parse_mode: 'HTML' }
+    );
+  });
+}

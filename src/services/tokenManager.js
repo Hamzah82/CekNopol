@@ -110,7 +110,7 @@ function setToken(userId, amount) {
   writeTokens(tokens);
 }
 
-module.exports = { setDbPath, getTokenBalance, deductToken, addToken, setToken, readTokens, getAllTokens };
+module.exports = { setDbPath, getTokenBalance, deductToken, addToken, setToken, readTokens, getAllTokens, transferToken };
 /**
  * Dapatkan semua token user (untuk admin list)
  * @returns {Array<{userId: string, balance: number}>} Array user dengan token
@@ -121,4 +121,34 @@ function getAllTokens() {
     userId,
     balance,
   }));
+}
+
+/**
+ * Transfer token dari satu user ke user lain
+ * @param {number|string} fromUserId - Pengirim
+ * @param {number|string} toUserId - Penerima
+ * @param {number} amount - Jumlah token (> 0)
+ * @returns {{success: boolean, error?: string, fromBalance?: number, toBalance?: number}}
+ */
+function transferToken(fromUserId, toUserId, amount) {
+  const tokens = readTokens();
+  const fromKey = String(fromUserId);
+  const toKey = String(toUserId);
+
+  const fromBalance = tokens[fromKey] || 0;
+
+  if (fromBalance < amount) {
+    return { success: false, error: 'Saldo token tidak mencukupi.' };
+  }
+
+  tokens[fromKey] = fromBalance - amount;
+  tokens[toKey] = (tokens[toKey] || 0) + amount;
+
+  writeTokens(tokens);
+
+  return {
+    success: true,
+    fromBalance: tokens[fromKey],
+    toBalance: tokens[toKey],
+  };
 }
