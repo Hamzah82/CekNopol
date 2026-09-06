@@ -43,6 +43,37 @@ function formatKendaraan(data) {
 }
 
 /**
+ * Format data nama (NIK lookup) menjadi pesan Telegram
+ * @param {object} data - Data dari API cek_nama
+ * @returns {string} Pesan terformat (HTML parse mode)
+ */
+function formatNama(data) {
+  const lines = [
+    `<b>👤 Data Kependudukan</b>`,
+    ``,
+    `<b>NIK:</b> ${data.nik || '-'}`,
+    `<b>Nama:</b> ${data.nama || '-'}`,
+    `<b>Tgl Lahir:</b> ${data.tanggal_lahir || '-'}`,
+    `<b>Umur:</b> ${data.umur || '-'}`,
+    `<b>Jenis Kelamin:</b> ${data.jenis_kelamin || '-'}`,
+    `<b>Tempat Lahir:</b> ${data.tempat_lahir || '-'}`,
+    `<b>Pekerjaan:</b> ${data.pekerjaan || '-'}`,
+    ``,
+    `<b>📍 Alamat</b>`,
+    `<b>Alamat:</b> ${data.alamat || '-'}`,
+    `<b>Kecamatan:</b> ${data.kecamatan || '-'}`,
+    `<b>Kab/Kota:</b> ${data.kab_kota || '-'}`,
+    `<b>Provinsi:</b> ${data.provinsi || '-'}`,
+    ``,
+    `<b>📋 Lainnya</b>`,
+    `<b>No. KK:</b> ${data.noKK || '-'}`,
+    `<b>RT:</b> ${data.rt || '-'} / <b>RW:</b> ${data.rw || '-'}`,
+  ];
+
+  return lines.join('\n');
+}
+
+/**
  * Format pesan error
  * @param {string} message - Pesan error
  * @returns {string}
@@ -60,4 +91,4 @@ function formatSuccess(message) {
   return `✅ ${message}`;
 }
 
-module.exports = { formatKendaraan, formatError, formatSuccess };
+module.exports = { formatKendaraan, formatNama, formatError, formatSuccess };

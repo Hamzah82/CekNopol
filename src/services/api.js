@@ -57,4 +57,42 @@ async function cekNopol(platNormalized) {
   }
 }
 
-module.exports = { initApi, cekNopol };
+/**
+ * Cek data orang berdasarkan nama via API eksternal
+ * @param {string} nama - Nama yang dicari
+ * @returns {Promise<{success: boolean, data: Array|null, total: number, error: string|null}>}
+ */
+async function cekNama(nama) {
+  try {
+    const endpoint = `${apiUrl}/api/cek_nama`;
+    const response = await axios.get(endpoint, {
+      params: {
+        nama: nama,
+        key: apiKey,
+      },
+      timeout: 15000,
+    });
+
+    const body = response.data;
+
+    if (!body || body.success !== true) {
+      return { success: false, data: null, total: 0, error: 'Data tidak ditemukan.' };
+    }
+
+    if (!Array.isArray(body.data) || body.data.length === 0) {
+      return { success: false, data: null, total: 0, error: 'Data tidak ditemukan.' };
+    }
+
+    return { success: true, data: body.data, total: body.total || body.data.length, error: null };
+  } catch (err) {
+    if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+      return { success: false, data: null, total: 0, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
+    }
+    if (err.response) {
+      return { success: false, data: null, total: 0, error: `Server mengembalikan error (${err.response.status}).` };
+    }
+    return { success: false, data: null, total: 0, error: 'Gagal menghubungi server. Periksa koneksi internet.' };
+  }
+}
+
+module.exports = { initApi, cekNopol, cekNama };

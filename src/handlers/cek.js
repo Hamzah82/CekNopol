@@ -1,5 +1,5 @@
 /**
- * cek.js — Handler /cek <platNomor>
+ * cek.js — Handler /ceknopol <platNomor>
  */
 
 const { isValidPlat, normalizePlat } = require('../utils/validator');
@@ -9,19 +9,19 @@ const cache = require('../services/cache');
 const api = require('../services/api');
 
 /**
- * Register handler /cek
+ * Register handler /ceknopol
  * @param {import('telegraf').Telegraf} bot - Instance Telegraf
  */
 function register(bot) {
-  bot.command('cek', async (ctx) => {
+  bot.command('ceknopol', async (ctx) => {
     const userId = ctx.from.id;
 
     // Extract plat dari argumen command
-    const rawPlat = ctx.message.text.replace(/^\/cek(@\w+)?\s*/, '').trim();
+    const rawPlat = ctx.message.text.replace(/^\/ceknopol(@\w+)?\s*/, '').trim();
 
     // 1. Validasi input tidak kosong
     if (!rawPlat) {
-      ctx.reply(formatError('Masukkan plat nomor.\n\nContoh: /cek B1234XYZ'), {
+      ctx.reply(formatError('Masukkan plat nomor.\n\nContoh: /ceknopol B1234XYZ'), {
         parse_mode: 'HTML',
       });
       return;
@@ -75,7 +75,7 @@ function register(bot) {
 
     // 7. API sukses → kurangi token, simpan ke cache, kirim data
     tokenManager.deductToken(userId, 1);
-    cache.saveToCache(platNormalized, result.data);
+    cache.saveToCachePlat(platNormalized, result.data);
 
     const formatted = formatKendaraan(result.data);
     ctx.reply(formatted, { parse_mode: 'HTML' });

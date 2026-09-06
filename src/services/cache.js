@@ -1,5 +1,5 @@
 /**
- * cache.js — Baca/tulis cache data kendaraan (db/plat.json)
+ * cache.js — Baca/tulis cache (db/plat.json & db/nama.json)
  */
 
 const fs = require('fs');
@@ -7,28 +7,15 @@ const path = require('path');
 
 let dbPath = './db';
 
-/**
- * Set path folder database
- * @param {string} basePath - Path ke folder db
- */
+// ─── Helpers ─────────────────────────────────────────────────
+
 function setDbPath(basePath) {
   dbPath = basePath;
 }
 
-/**
- * Dapatkan path lengkap plat.json
- */
-function getPlatFilePath() {
-  return path.join(dbPath, 'plat.json');
-}
-
-/**
- * Baca seluruh cache plat
- * @returns {object} Data cache
- */
-function readCache() {
+function readJsonFile(filename) {
   try {
-    const filePath = getPlatFilePath();
+    const filePath = path.join(dbPath, filename);
     if (!fs.existsSync(filePath)) {
       fs.writeFileSync(filePath, '{}', 'utf-8');
       return {};
@@ -36,47 +23,76 @@ function readCache() {
     const raw = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(raw);
   } catch (err) {
-    console.error('[cache] Error membaca plat.json:', err.message);
-    // Inisialisasi ulang jika corrupt
-    fs.writeFileSync(getPlatFilePath(), '{}', 'utf-8');
+    console.error(`[cache] Error membaca ${filename}:`, err.message);
+    const filePath = path.join(dbPath, filename);
+    fs.writeFileSync(filePath, '{}', 'utf-8');
     return {};
   }
 }
 
-/**
- * Tulis seluruh cache plat
- * @param {object} data - Data cache lengkap
- */
-function writeCache(data) {
+function writeJsonFile(filename, data) {
   try {
-    fs.writeFileSync(getPlatFilePath(), JSON.stringify(data, null, 2), 'utf-8');
+    const filePath = path.join(dbPath, filename);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
-    console.error('[cache] Error menulis plat.json:', err.message);
+    console.error(`[cache] Error menulis ${filename}:`, err.message);
   }
 }
 
-/**
- * Cek apakah plat ada di cache
- * @param {string} platNormalized - Plat yang sudah dinormalisasi
- * @returns {object|null} Data kendaraan atau null
- */
+function normalizeKey(raw) {
+  return raw.replace(/\s+/g, '').toUpperCase();
+}
+
+// ─── Cache Plat (db/plat.json) ───────────────────────────────
+
 function getCachedPlat(platNormalized) {
-  const cache = readCache();
+  const cache = readJsonFile('plat.json');
   return cache[platNormalized] || null;
 }
 
-/**
- * Simpan data kendaraan ke cache
- * @param {string} platNormalized - Plat yang sudah dinormalisasi
- * @param {object} data - Data kendaraan dari API
- */
-function saveToCache(platNormalized, data) {
-  const cache = readCache();
+function saveToCachePlat(platNormalized, data) {
+  const cache = readJsonFile('plat.json');
   cache[platNormalized] = {
     ...data,
     cachedAt: new Date().toISOString(),
   };
-  writeCache(cache);
+  writeJsonFile('plat.json', cache);
 }
 
-module.exports = { setDbPath, readCache, getCachedPlat, saveToCache };
+// ─── Cache Nama (db/nama.json) ───────────────────────────────
+
+/**
+ * Cek apakah nama ada di cache
+ * @param {string} nama - Nama yang sudah dinormalisasi (tanpa spasi, uppercase)
+ * @returns {object|null} Object { total, data[] } atau null
+ */
+function getCachedNama(namaNormalized) {
+  const cache = readJsonFile('nama.json');
+  return cache[namaNormalized] || null;
+}
+
+/**
+ * Simpan hasil pencarian nama ke cache
+ * @param {string} namaNormalized - Nama yang sudah dinormalisasi
+ * @param {object} result - { total, data[] } dari API
+ */
+function saveToCacheNama(namaNormalized, result) {
+  const cache = readJsonFile('nama.json');
+  cache[namaNormalized] = {
+    total: result.total,
+    data: result.data,
+    cachedAt: new Date().toISOString(),
+  };
+  writeJsonFile('nama.json', cache);
+}
+
+module.exports = {
+  setDbPath,
+  normalizeKey,
+  // Plat
+  getCachedPlat,
+  saveToCachePlat,
+  // Nama
+  getCachedNama,
+  saveToCacheNama,
+};

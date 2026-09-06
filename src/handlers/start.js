@@ -3,26 +3,53 @@
  */
 
 const WELCOME_MESSAGE = `
-🚗 <b>Selamat datang di CekNopolBot!</b>
+🚗 <b>CEK NOPOL BOT</b>
 
-Bot ini membantu kamu mengecek data kendaraan bermotor berdasarkan plat nomor.
+Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 
-<b>📋 Daftar Command:</b>
-/start atau /menu — Tampilkan pesan ini
-/token — Lihat sisa token kamu
-/cek &lt;plat&gt; — Cek data kendaraan
+─────────────────────
 
-<b>📝 Format Plat Nomor:</b>
+<b>📋 DAFTAR COMMAND</b>
+
+🔹 /start — Tampilkan menu utama
+🔹 /menu — Sama seperti /start
+🔹 /token — Lihat sisa token kamu
+🔹 /ceknopol &lt;plat&gt; — Cek data kendaraan
+🔹 /ceknama &lt;nama&gt; — Cek data kependudukan
+
+─────────────────────
+
+<b>📝 FORMAT INPUT</b>
+
+<b>Plat Nomor:</b>
 • B1234XYZ
 • D 1234 ABC
 • AB123CD
 
-<b>💡 Catatan:</b>
-• Setiap pengecekan membutuhkan 1 token
-• Data yang pernah dicek disimpan di cache (tetap kena 1 token)
-• Hubungi admin untuk mendapatkan/menambah token
+<b>Nama:</b>
+• /ceknama JANICE
+• /ceknama BUDI SANTOSO
 
-Ketik /menu kapan saja untuk melihat panduan ini lagi.
+─────────────────────
+
+<b>🛡️ ADMIN COMMAND</b>
+
+🔸 /token &lt;ID&gt; +&lt;n&gt; — Tambah token
+🔸 /token &lt;ID&gt; -&lt;n&gt; — Kurangi token
+🔸 /token list — Lihat semua token user
+🔸 /token list &lt;hal&gt; — Halaman tertentu
+
+─────────────────────
+
+<b>💡 CATATAN</b>
+
+• 1x cek = 1 token (dari cache juga)
+• Data cache: plat.json &amp; nama.json
+• Token tidak terpotong jika data tidak ditemukan
+• Hubungi admin untuk top-up token
+
+─────────────────────
+🐢 <i>CekNopolBot v1.0</i>
 `.trim();
 
 /**

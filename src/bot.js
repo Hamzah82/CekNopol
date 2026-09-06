@@ -6,6 +6,7 @@ const { Telegraf } = require('telegraf');
 const startHandler = require('./handlers/start');
 const tokenHandler = require('./handlers/token');
 const cekHandler = require('./handlers/cek');
+const ceknamaHandler = require('./handlers/ceknama');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
@@ -42,6 +43,7 @@ function createBot(config) {
   startHandler.register(bot);
   tokenHandler.register(bot);
   cekHandler.register(bot);
+  ceknamaHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {
