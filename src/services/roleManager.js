@@ -19,7 +19,14 @@ function readJsonFile(filename) {
       return [];
     }
     const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    // Validasi: pastikan data adalah array
+    if (!Array.isArray(data)) {
+      console.warn(`[roleManager] ${filename} bukan array, di-reset ke []`);
+      fs.writeFileSync(filePath, '[]', 'utf-8');
+      return [];
+    }
+    return data;
   } catch (err) {
     console.error(`[roleManager] Error membaca ${filename}:`, err.message);
     const filePath = path.join(dbPath, filename);

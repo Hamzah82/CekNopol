@@ -50,7 +50,7 @@ const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.
 for (const file of dbFiles) {
   const filePath = path.join(dbPath, file);
   if (!fs.existsSync(filePath)) {
-    const defaultContent = file === 'admins.json' ? '[]' : '{}';
+    const defaultContent = (file === 'admins.json' || file === 'admin.json' || file === 'reseller.json') ? '[]' : '{}';
     fs.writeFileSync(filePath, defaultContent, 'utf-8');
     console.log(`📄 File database dibuat: ${filePath}`);
   }
