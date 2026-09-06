@@ -32,15 +32,6 @@ Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 
 ─────────────────────
 
-<b>🛡️ ADMIN COMMAND</b>
-
-🔸 /token &lt;ID&gt; +&lt;n&gt; — Tambah token
-🔸 /token &lt;ID&gt; -&lt;n&gt; — Kurangi token
-🔸 /token list — Lihat semua token user
-🔸 /token list &lt;hal&gt; — Halaman tertentu
-
-─────────────────────
-
 <b>💡 CATATAN</b>
 
 • 1x cek = 1 token (dari cache juga)
