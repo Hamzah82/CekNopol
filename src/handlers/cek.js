@@ -1,0 +1,85 @@
+/**
+ * cek.js — Handler /cek <platNomor>
+ */
+
+const { isValidPlat, normalizePlat } = require('../utils/validator');
+const { formatKendaraan, formatError } = require('../utils/format');
+const tokenManager = require('../services/tokenManager');
+const cache = require('../services/cache');
+const api = require('../services/api');
+
+/**
+ * Register handler /cek
+ * @param {import('telegraf').Telegraf} bot - Instance Telegraf
+ */
+function register(bot) {
+  bot.command('cek', async (ctx) => {
+    const userId = ctx.from.id;
+
+    // Extract plat dari argumen command
+    const rawPlat = ctx.message.text.replace(/^\/cek(@\w+)?\s*/, '').trim();
+
+    // 1. Validasi input tidak kosong
+    if (!rawPlat) {
+      ctx.reply(formatError('Masukkan plat nomor.\n\nContoh: /cek B1234XYZ'), {
+        parse_mode: 'HTML',
+      });
+      return;
+    }
+
+    // 2. Validasi format plat
+    if (!isValidPlat(rawPlat)) {
+      ctx.reply(
+        formatError('Format plat tidak valid.\n\nContoh yang benar:\n• B1234XYZ\n• D 1234 ABC\n• AB123CD'),
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    // 3. Cek saldo token
+    const balance = tokenManager.getTokenBalance(userId);
+    if (balance <= 0) {
+      ctx.reply(formatError('Saldo token tidak mencukupi.\nHubungi admin untuk menambah token.'), {
+        parse_mode: 'HTML',
+      });
+      return;
+    }
+
+    // 4. Normalisasi plat
+    const platNormalized = normalizePlat(rawPlat);
+
+    // Kirim typing indicator
+    await ctx.sendChatAction('typing');
+
+    // 5. Cek cache lokal dulu
+    const cachedData = cache.getCachedPlat(platNormalized);
+
+    if (cachedData) {
+      // Cache HIT → kurangi token, kirim data dari cache
+      tokenManager.deductToken(userId, 1);
+      const formatted = formatKendaraan(cachedData);
+      ctx.reply(formatted, { parse_mode: 'HTML' });
+      return;
+    }
+
+    // 6. Cache MISS → tembak API eksternal
+    const result = await api.cekNopol(platNormalized);
+
+    if (!result.success) {
+      // API gagal atau data tidak ditemukan → JANGAN kurangi token
+      ctx.reply(formatError(result.error || 'Data kendaraan tidak ditemukan.'), {
+        parse_mode: 'HTML',
+      });
+      return;
+    }
+
+    // 7. API sukses → kurangi token, simpan ke cache, kirim data
+    tokenManager.deductToken(userId, 1);
+    cache.saveToCache(platNormalized, result.data);
+
+    const formatted = formatKendaraan(result.data);
+    ctx.reply(formatted, { parse_mode: 'HTML' });
+  });
+}
+
+module.exports = { register };

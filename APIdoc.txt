@@ -1,0 +1,61 @@
+API Reference
+
+GET
+/api/nopol?plat={plat}&key={api_key}
+Pencarian data kendaraan berdasarkan plat nomor. Mengembalikan spesifikasi kendaraan, data pemilik terdaftar, nomor rangka/mesin, dan status pajak STNK.
+
+Parameter
+Param	Tipe	Keterangan
+plat	string	Plat nomor kendaraanrequired
+key	string	API key Andarequired
+Contoh Response
+{
+  "success": true,
+  "data": [
+    {
+      "plat": "D 1*** ***",
+      "merk": "DATSUN",
+      "tipe": "GO+PANCA T 1.2 M/T",
+      "tahun": "2016",
+      "warna": "PUTIH",
+      "warnaTnkb": "HITAM",
+      "cc": "1198",
+      "rangka": "MHBJ***",
+      "mesin": "HR12***",
+      "bpkb": "N05***",
+      "stnk": "",
+      "apm": "",
+      "tglDaftar": "2020-05-30 00:00:00.000000",
+      "bbm": "BENSIN",
+      "sumbu": "",
+      "roda": "",
+      "nama": "YANET K*** ***",
+      "nik": "327304XXXXXX0001",
+      "noKK": "",
+      "pekerjaan": "",
+      "alamat": "*** RT ** RW ** BANDUNG",
+      "kota": "",
+      "provinsi": "",
+      "polda": "",
+      "rtRw": "",
+      "noHp": "",
+      "email": "",
+      "jenisKendaraan": "MB. PENUMPANG",
+      "statusPajak": "",
+      "tglPajakExp": "",
+      "tglStnk": "",
+      "jumlahPajak": "",
+      "tglBayarPajak": "",
+      "pkbPokok": "",
+      "pkbDenda": ""
+    }
+  ],
+  "tokens_remaining": 98
+}
+Code Snippet
+cURL
+JavaScript
+Python
+API Key kamu...
+D1315AFJ
+curl "https://typically-bonus-ultram-appearance.trycloudflare.com/api/nopol?plat=%7Bplat%7D&key=%7Bapi_key%7D"

@@ -1,0 +1,17 @@
+{
+  "name": "ceknopol-bot",
+  "version": "1.0.0",
+  "description": "Bot Telegram Cek Nopol Kendaraan dengan sistem token dan cache lokal",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": ["telegram", "bot", "nopol", "kendaraan"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "axios": "^1.7.9"
+  }
+}
