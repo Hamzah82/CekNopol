@@ -7,9 +7,12 @@ const startHandler = require('./handlers/start');
 const tokenHandler = require('./handlers/token');
 const cekHandler = require('./handlers/cek');
 const ceknamaHandler = require('./handlers/ceknama');
+const adminHandler = require('./handlers/admin');
+const resellerHandler = require('./handlers/reseller');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
+const roleManager = require('./services/roleManager');
 
 /**
  * Buat dan konfigurasi instance bot
@@ -29,6 +32,7 @@ function createBot(config) {
   const dbPath = config.dbPath || './db';
   cacheService.setDbPath(dbPath);
   tokenService.setDbPath(dbPath);
+  roleManager.setDbPath(dbPath);
 
   // Inisialisasi API service
   if (!config.apiUrl || !config.apiKey) {
@@ -38,12 +42,16 @@ function createBot(config) {
 
   // Inisialisasi admin IDs untuk handler token
   tokenHandler.initAdmins(config.adminIds || []);
+  adminHandler.initSetupAdmins(config.adminIds || []);
+  resellerHandler.initSetupAdmins(config.adminIds || []);
 
   // Register semua handlers
   startHandler.register(bot);
   tokenHandler.register(bot);
   cekHandler.register(bot);
   ceknamaHandler.register(bot);
+  adminHandler.register(bot);
+  resellerHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {

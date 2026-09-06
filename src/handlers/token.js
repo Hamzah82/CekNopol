@@ -3,6 +3,7 @@
  */
 
 const tokenManager = require('../services/tokenManager');
+const roleManager = require('../services/roleManager');
 const { formatSuccess, formatError } = require('../utils/format');
 
 /** @type {number[]} */
@@ -17,12 +18,12 @@ function initAdmins(ids) {
 }
 
 /**
- * Cek apakah user adalah admin
+ * Cek apakah user adalah admin (dari setup.json ATAU db/admin.json)
  * @param {number} userId
  * @returns {boolean}
  */
 function isAdmin(userId) {
-  return adminIds.includes(userId);
+  return adminIds.includes(userId) || roleManager.isAdmin(userId);
 }
 
 /**

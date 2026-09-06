@@ -46,7 +46,7 @@ if (!fs.existsSync(dbPath)) {
 }
 
 // Pastikan file JSON default ada
-const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json'];
+const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.json', 'reseller.json'];
 for (const file of dbFiles) {
   const filePath = path.join(dbPath, file);
   if (!fs.existsSync(filePath)) {
