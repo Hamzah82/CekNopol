@@ -46,7 +46,7 @@ function register(bot) {
     const cachedData = cache.getCachedNama(namaNormalized);
 
     if (cachedData) {
-      // Cache HIT → token TIDAK dimusnahkan, refund ke main admin + notifikasi
+      // Cache HIT → 1 token dialihkan dari user ke main admin + notifikasi
       const dataList = cachedData.data;
       const total = cachedData.total;
 
@@ -62,13 +62,13 @@ function register(bot) {
         );
       }
 
-      const { notification } = refundService.refundCacheToken({
+      const { recipientId, notification } = refundService.transferCacheToken({
         userId,
         command: '/ceknama',
         query: nama,
       });
-      for (const adminId of refundService.getMainAdmins()) {
-        ctx.telegram.sendMessage(adminId, notification, { parse_mode: 'HTML' }).catch(() => {});
+      if (recipientId !== null) {
+        ctx.telegram.sendMessage(recipientId, notification, { parse_mode: 'HTML' }).catch(() => {});
       }
       return;
     }
