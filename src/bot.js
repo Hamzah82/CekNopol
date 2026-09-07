@@ -13,6 +13,7 @@ const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
 const roleManager = require('./services/roleManager');
+const refundService = require('./services/refundService');
 
 /**
  * Buat dan konfigurasi instance bot
@@ -44,6 +45,7 @@ function createBot(config) {
   tokenHandler.initAdmins(config.adminIds || []);
   adminHandler.initSetupAdmins(config.adminIds || []);
   resellerHandler.initSetupAdmins(config.adminIds || []);
+  refundService.initSetupAdmins(config.adminIds || []);
 
   // Register semua handlers
   startHandler.register(bot);

@@ -6,6 +6,7 @@ const { formatNama, formatError } = require('../utils/format');
 const tokenManager = require('../services/tokenManager');
 const cache = require('../services/cache');
 const api = require('../services/api');
+const refundService = require('../services/refundService');
 
 /**
  * Register handler /ceknama
@@ -45,8 +46,7 @@ function register(bot) {
     const cachedData = cache.getCachedNama(namaNormalized);
 
     if (cachedData) {
-      // Cache HIT → kurangi token, kirim data dari cache
-      tokenManager.deductToken(userId, 1);
+      // Cache HIT → token TIDAK dimusnahkan, refund ke main admin + notifikasi
       const dataList = cachedData.data;
       const total = cachedData.total;
 
@@ -60,6 +60,15 @@ function register(bot) {
           `📊 Total hasil: <b>${total}</b> data ditemukan.\n<i>📦 Data dari cache (${new Date(cachedData.cachedAt).toLocaleString('id-ID')})</i>`,
           { parse_mode: 'HTML' }
         );
+      }
+
+      const { notification } = refundService.refundCacheToken({
+        userId,
+        command: '/ceknama',
+        query: nama,
+      });
+      for (const adminId of refundService.getMainAdmins()) {
+        ctx.telegram.sendMessage(adminId, notification, { parse_mode: 'HTML' }).catch(() => {});
       }
       return;
     }

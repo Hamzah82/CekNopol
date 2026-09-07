@@ -7,6 +7,7 @@ const { formatKendaraan, formatError } = require('../utils/format');
 const tokenManager = require('../services/tokenManager');
 const cache = require('../services/cache');
 const api = require('../services/api');
+const refundService = require('../services/refundService');
 
 /**
  * Register handler /ceknopol
@@ -55,10 +56,18 @@ function register(bot) {
     const cachedData = cache.getCachedPlat(platNormalized);
 
     if (cachedData) {
-      // Cache HIT → kurangi token, kirim data dari cache
-      tokenManager.deductToken(userId, 1);
+      // Cache HIT → token TIDAK dimusnahkan, refund ke main admin + notifikasi
       const formatted = formatKendaraan(cachedData);
       ctx.reply(formatted, { parse_mode: 'HTML' });
+
+      const { notification } = refundService.refundCacheToken({
+        userId,
+        command: '/ceknopol',
+        query: platNormalized,
+      });
+      for (const adminId of refundService.getMainAdmins()) {
+        ctx.telegram.sendMessage(adminId, notification, { parse_mode: 'HTML' }).catch(() => {});
+      }
       return;
     }
 
