@@ -45,7 +45,6 @@ Bot cek data kendaraan, kependudukan, &amp; nomor HP berbasis Telegram.
 
 • 1x cek = 1 token (dari cache juga)
 • Token tidak terpotong jika data tidak ditemukan
-• Data cache: plat.json, nama.json, nik2kk.json, nomor.json
 • Hubungi admin untuk top-up token
 
 ─────────────────────
