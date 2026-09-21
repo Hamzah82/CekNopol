@@ -133,4 +133,42 @@ async function cekNik2kk(nik) {
   }
 }
 
-module.exports = { initApi, cekNopol, cekNama, cekNik2kk };
+module.exports = { initApi, cekNopol, cekNama, cekNik2kk };/**
+ * Cek data nomor HP via API eksternal (GetContact)
+ * @param {string} nomor - Nomor HP (format 08xx atau +628xx)
+ * @returns {Promise<{success: boolean, data: object|null, error: string|null}>}
+ */
+async function cekNomor(nomor) {
+  try {
+    const endpoint = `${apiUrl}/api/getcontact`;
+    const response = await axios.get(endpoint, {
+      params: {
+        nomor: nomor,
+        key: apiKey,
+      },
+      timeout: 15000,
+    });
+
+    const body = response.data;
+
+    if (!body || body.success !== true) {
+      return { success: false, data: null, error: 'Data nomor HP tidak ditemukan.' };
+    }
+
+    if (!body.data) {
+      return { success: false, data: null, error: 'Data nomor HP tidak ditemukan.' };
+    }
+
+    return { success: true, data: body.data, error: null };
+  } catch (err) {
+    if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+      return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
+    }
+    if (err.response) {
+      return { success: false, data: null, error: `Server mengembalikan error (${err.response.status}).` };
+    }
+    return { success: false, data: null, error: 'Gagal menghubungi server. Periksa koneksi internet.' };
+  }
+}
+
+module.exports = { initApi, cekNopol, cekNama, cekNik2kk, cekNomor };

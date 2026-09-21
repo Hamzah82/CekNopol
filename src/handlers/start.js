@@ -17,6 +17,7 @@ Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 🔹 /ceknopol &lt;plat&gt; — Cek data kendaraan
 🔹 /ceknama &lt;nama&gt; — Cek data kependudukan
 🔹 /nik2kk &lt;nik&gt; — Cari data NIK ke KK
+🔹 /ceknomor &lt;nomor&gt; — Cek data pemilik nomor HP
 
 ─────────────────────
 

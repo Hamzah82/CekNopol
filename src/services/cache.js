@@ -124,4 +124,45 @@ module.exports = {
   // Nik2kk
   getCachedNik2kk,
   saveToCacheNik2kk,
+};// ─── Cache Nomor HP (db/nomor.json) ──────────────────────────
+
+/**
+ * Cek apakah nomor HP ada di cache
+ * @param {string} nomorNormalized - Nomor yang sudah dinormalisasi
+ * @returns {object|null} Data nomor atau null
+ */
+function getCachedNomor(nomorNormalized) {
+  const cache = readJsonFile('nomor.json');
+  return cache[nomorNormalized] || null;
+}
+
+/**
+ * Simpan hasil pencarian nomor HP ke cache
+ * @param {string} nomorNormalized - Nomor yang sudah dinormalisasi
+ * @param {object} data - Data dari API
+ */
+function saveToCacheNomor(nomorNormalized, data) {
+  const cache = readJsonFile('nomor.json');
+  cache[nomorNormalized] = {
+    ...data,
+    cachedAt: new Date().toISOString(),
+  };
+  writeJsonFile('nomor.json', cache);
+}
+
+module.exports = {
+  setDbPath,
+  normalizeKey,
+  // Plat
+  getCachedPlat,
+  saveToCachePlat,
+  // Nama
+  getCachedNama,
+  saveToCacheNama,
+  // Nik2kk
+  getCachedNik2kk,
+  saveToCacheNik2kk,
+  // Nomor
+  getCachedNomor,
+  saveToCacheNomor,
 };

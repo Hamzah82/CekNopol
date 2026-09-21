@@ -111,4 +111,40 @@ function formatNik2kk(data) {
   return lines.join('\n');
 }
 
-module.exports = { formatKendaraan, formatNama, formatNik2kk, formatError, formatSuccess };
+module.exports = { formatKendaraan, formatNama, formatNik2kk, formatError, formatSuccess };/**
+ * Format data nomor HP (GetContact) menjadi pesan Telegram
+ * @param {object} data - Data dari API getcontact
+ * @returns {string} Pesan terformat (HTML parse mode)
+ */
+function formatNomor(data) {
+  const lines = [
+    `<b>📱 Data Nomor HP</b>`,
+    ``,
+    `<b>Nomor:</b> ${data.nomor || '-'}`,
+    `<b>Operator:</b> ${data.operator || '-'}`,
+    `<b>Nama:</b> ${data.nama || '-'}`,
+    `<b>Spam:</b> ${data.is_spam ? '⚠️ Ya' : '✅ Tidak'}`,
+    `<b>Mencurigakan:</b> ${data.is_suspicious ? '⚠️ Ya' : '✅ Tidak'}`,
+    `<b>Total Tags:</b> ${data.total_tags || 0}`,
+  ];
+
+  // Tampilkan tags jika ada
+  if (data.tags && Array.isArray(data.tags) && data.tags.length > 0) {
+    lines.push(``, `<b>🏷️ Tags Populer:</b>`);
+    data.tags.slice(0, 10).forEach((tag) => {
+      lines.push(`• ${tag.tag} <i>(${tag.count}x)</i>`);
+    });
+  }
+
+  if (data.tokens_remaining !== undefined) {
+    lines.push(``, `<i>💰 Sisa token API: ${data.tokens_remaining}</i>`);
+  }
+
+  if (data.cachedAt) {
+    lines.push(``, `<i>📦 Data dari cache (${new Date(data.cachedAt).toLocaleString('id-ID')})</i>`);
+  }
+
+  return lines.join('\n');
+}
+
+module.exports = { formatKendaraan, formatNama, formatNik2kk, formatNomor, formatError, formatSuccess };
