@@ -16,6 +16,7 @@ Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 🔹 /token — Lihat sisa token kamu
 🔹 /ceknopol &lt;plat&gt; — Cek data kendaraan
 🔹 /ceknama &lt;nama&gt; — Cek data kependudukan
+🔹 /nik2kk &lt;nik&gt; — Cari data NIK ke KK
 
 ─────────────────────
 
@@ -29,6 +30,9 @@ Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 <b>Nama:</b>
 • /ceknama JANICE
 • /ceknama BUDI SANTOSO
+
+<b>NIK:</b>
+• /nik2kk 127703XXXXXXX006
 
 ─────────────────────
 

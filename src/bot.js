@@ -9,6 +9,7 @@ const cekHandler = require('./handlers/cek');
 const ceknamaHandler = require('./handlers/ceknama');
 const adminHandler = require('./handlers/admin');
 const resellerHandler = require('./handlers/reseller');
+const nik2kkHandler = require('./handlers/nik2kk');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
@@ -55,6 +56,7 @@ function createBot(config) {
   adminHandler.register(bot);
   resellerHandler.register(bot);
   resellerHandler.registerGive(bot);
+  nik2kkHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {

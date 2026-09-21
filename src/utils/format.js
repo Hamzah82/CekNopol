@@ -91,4 +91,24 @@ function formatSuccess(message) {
   return `✅ ${message}`;
 }
 
-module.exports = { formatKendaraan, formatNama, formatError, formatSuccess };
+/**
+ * Format data NIK->KK menjadi pesan Telegram
+ * @param {object} data - Data dari API nik2kk
+ * @returns {string} Pesan terformat (HTML parse mode)
+ */
+function formatNik2kk(data) {
+  const lines = [
+    `<b>🔍 Data NIK → KK</b>`,
+    ``,
+    `<b>NIK:</b> ${data.nik || '-'}`,
+    `<b>No. KK:</b> ${data.nokk || '-'}`,
+    `<b>Nama:</b> ${data.nama || '-'}`,
+    `<b>Tempat Lahir:</b> ${data.tempat_lahir || '-'}`,
+    `<b>Tanggal Lahir:</b> ${data.tanggal_lahir || '-'}`,
+    `<b>Jenis Kelamin:</b> ${data.jenis_kelamin || '-'}`,
+  ];
+
+  return lines.join('\n');
+}
+
+module.exports = { formatKendaraan, formatNama, formatNik2kk, formatError, formatSuccess };

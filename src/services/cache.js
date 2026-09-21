@@ -86,6 +86,32 @@ function saveToCacheNama(namaNormalized, result) {
   writeJsonFile('nama.json', cache);
 }
 
+// ─── Cache Nik2kk (db/nik2kk.json) ───────────────────────────
+
+/**
+ * Cek apakah NIK ada di cache
+ * @param {string} nikNormalized - NIK yang sudah dinormalisasi
+ * @returns {object|null} Data NIK atau null
+ */
+function getCachedNik2kk(nikNormalized) {
+  const cache = readJsonFile('nik2kk.json');
+  return cache[nikNormalized] || null;
+}
+
+/**
+ * Simpan hasil pencarian NIK ke cache
+ * @param {string} nikNormalized - NIK yang sudah dinormalisasi
+ * @param {object} data - Data dari API
+ */
+function saveToCacheNik2kk(nikNormalized, data) {
+  const cache = readJsonFile('nik2kk.json');
+  cache[nikNormalized] = {
+    ...data,
+    cachedAt: new Date().toISOString(),
+  };
+  writeJsonFile('nik2kk.json', cache);
+}
+
 module.exports = {
   setDbPath,
   normalizeKey,
@@ -95,4 +121,7 @@ module.exports = {
   // Nama
   getCachedNama,
   saveToCacheNama,
+  // Nik2kk
+  getCachedNik2kk,
+  saveToCacheNik2kk,
 };

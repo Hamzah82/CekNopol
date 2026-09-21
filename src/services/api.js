@@ -95,4 +95,42 @@ async function cekNama(nama) {
   }
 }
 
-module.exports = { initApi, cekNopol, cekNama };
+/**
+ * Cek data NIK ke KK via API eksternal
+ * @param {string} nik - NIK 16 digit
+ * @returns {Promise<{success: boolean, data: object|null, error: string|null}>}
+ */
+async function cekNik2kk(nik) {
+  try {
+    const endpoint = `${apiUrl}/api/nik2kk`;
+    const response = await axios.get(endpoint, {
+      params: {
+        nik: nik,
+        key: apiKey,
+      },
+      timeout: 15000,
+    });
+
+    const body = response.data;
+
+    if (!body || body.success !== true) {
+      return { success: false, data: null, error: 'Data NIK tidak ditemukan.' };
+    }
+
+    if (!body.data) {
+      return { success: false, data: null, error: 'Data NIK tidak ditemukan.' };
+    }
+
+    return { success: true, data: body.data, error: null };
+  } catch (err) {
+    if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+      return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
+    }
+    if (err.response) {
+      return { success: false, data: null, error: `Server mengembalikan error (${err.response.status}).` };
+    }
+    return { success: false, data: null, error: 'Gagal menghubungi server. Periksa koneksi internet.' };
+  }
+}
+
+module.exports = { initApi, cekNopol, cekNama, cekNik2kk };
