@@ -5,7 +5,7 @@
 const WELCOME_MESSAGE = `
 🚗 <b>XY BOT</b>
 
-Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
+Bot cek data kendaraan, kependudukan, &amp; nomor HP berbasis Telegram.
 
 ─────────────────────
 
@@ -24,9 +24,9 @@ Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 <b>📝 FORMAT INPUT</b>
 
 <b>Plat Nomor:</b>
-• B1234XYZ
-• D 1234 ABC
-• AB123CD
+• /ceknopol B1234XYZ
+• /ceknopol D1234ABC
+• /ceknopol AB123CD
 
 <b>Nama:</b>
 • /ceknama JANICE
@@ -35,13 +35,17 @@ Bot cek data kendaraan &amp; data kependudukan berbasis Telegram.
 <b>NIK:</b>
 • /nik2kk 127703XXXXXXX006
 
+<b>Nomor HP:</b>
+• /ceknomor 0812XXXXXXX89
+• /ceknomor +62812XXXXXXX89
+
 ─────────────────────
 
 <b>💡 CATATAN</b>
 
 • 1x cek = 1 token (dari cache juga)
-• Data cache: plat.json &amp; nama.json
 • Token tidak terpotong jika data tidak ditemukan
+• Data cache: plat.json, nama.json, nik2kk.json, nomor.json
 • Hubungi admin untuk top-up token
 
 ─────────────────────
