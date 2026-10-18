@@ -1,9 +1,26 @@
 /**
- * start.js — Handler /start & /menu
+ * start.js — Handler /start & /menu (menu bertingkat dengan tombol inline)
+ *
+ * Struktur:
+ *   /start  → menu utama ringkas + tombol (Command, Harga, Cara Beli, Format)
+ *   Tombol  → edit pesan yang sama menampilkan detail bagian terkait
+ *   ◀ Kembali → kembali ke menu utama
  */
 
 const roleManager = require('../services/roleManager');
 const priceService = require('../services/priceService');
+const tokenManager = require('../services/tokenManager');
+
+/** Prefix callback agar tidak bentrok dengan handler lain */
+const CB = 'menu:';
+
+/** Label layanan untuk tampilan */
+const SERVICE_LABELS = {
+  ceknopol: 'Cek Nopol',
+  ceknama: 'Cek Nama',
+  nik2kk: 'NIK ke KK',
+  ceknomor: 'Cek Nomor HP',
+};
 
 /** @type {number[]} */
 let setupAdminIds = [];
@@ -26,134 +43,255 @@ function isAnyAdmin(userId) {
 }
 
 /**
- * Bangun teks daftar harga layanan (pricelist)
+ * Format angka rupiah
+ * @param {number} n
  * @returns {string}
  */
-function buildPricelist() {
-  const prices = priceService.getAllPrices();
-  const labels = {
-    ceknopol: 'Cek Nopol',
-    ceknama: 'Cek Nama',
-    nik2kk: 'NIK ke KK',
-    ceknomor: 'Cek Nomor HP',
-  };
+function rupiah(n) {
+  return 'Rp' + Number(n).toLocaleString('id-ID');
+}
+
+/**
+ * Bangun pesan menu utama
+ * @param {number} userId
+ * @returns {string}
+ */
+function buildMainMenu(userId) {
+  const balance = tokenManager.getTokenBalance(userId);
 
   const lines = [
-    '<b>💰 DAFTAR HARGA LAYANAN</b>',
-    '',
+    `🚗 <b>XY BOT</b>`,
+    ``,
+    `Bot cek data kendaraan, kependudukan, &amp; nomor HP.`,
+    ``,
+    `💰 Saldo kamu: <b>${balance}</b> token`,
+    ``,
+    `Pilih menu di bawah ini 👇`,
   ];
 
-  for (const { service, price } of prices) {
-    const label = labels[service] || service;
-    const satuan = price === 1 ? 'token' : 'token';
-    lines.push(`• /${service} — <b>${price} ${satuan}</b>  <i>(${label})</i>`);
+  if (isAnyAdmin(userId)) {
+    lines.push(``, `🛡️ Kamu terdaftar sebagai <b>admin</b> — ketik /adminmenu`);
   }
-
-  lines.push('');
-  lines.push('<i>1 token = Rp2.000 — beli lewat /buy</i>');
 
   return lines.join('\n');
 }
 
-const WELCOME_MESSAGE = `
-🚗 <b>XY BOT</b>
-
-Bot cek data kendaraan, kependudukan, &amp; nomor HP berbasis Telegram.
-
-─────────────────────
-
-<b>📋 DAFTAR COMMAND</b>
-
-🔹 /start — Tampilkan menu utama
-🔹 /menu — Sama seperti /start
-🔹 /token — Lihat sisa token kamu
-🔹 /buy &lt;jumlah&gt; — Beli token via QRIS
-🔹 /ceknopol &lt;plat&gt; — Cek data kendaraan
-🔹 /ceknama &lt;nama&gt; — Cek data kependudukan
-🔹 /nik2kk &lt;nik&gt; — Cari data NIK ke KK
-🔹 /ceknomor &lt;nomor&gt; — Cek data pemilik nomor HP
-
-─────────────────────
-
-<b>📝 FORMAT INPUT</b>
-
-<b>Plat Nomor:</b>
-• /ceknopol B1234XYZ
-• /ceknopol D1234ABC
-• /ceknopol AB123CD
-
-<b>Nama:</b>
-• /ceknama JANICE
-• /ceknama BUDI SANTOSO
-
-<b>NIK:</b>
-• /nik2kk 127703XXXXXXX006
-
-<b>Nomor HP:</b>
-• /ceknomor 0812XXXXXXX89
-• /ceknomor +62812XXXXXXX89
-
-─────────────────────
-
-<b>🛒 CARA BELI TOKEN</b>
-
-<b>1.</b> Kirim <code>/buy &lt;jumlah&gt;</code>
-    Contoh: <code>/buy 5</code>
-<b>2.</b> Bot mengirim <b>QRIS</b> + total harga
-<b>3.</b> Scan QRIS &amp; bayar sesuai nominal
-<b>4.</b> Kirim <b>foto bukti transfer</b> ke chat ini
-<b>5.</b> Tunggu admin memverifikasi
-<b>6.</b> Token otomatis masuk setelah disetujui ✅
-
-<b>💵 Harga:</b>
-• <b>Rp2.000</b> / token
-• Ditambah biaya admin per transaksi
-
-<b>Contoh:</b> beli 5 token
-    (5 × Rp2.000) + biaya admin
-    = nominal yang harus dibayar
-
-<b>⚠️ Catatan:</b>
-• Selesaikan 1 order sebelum membuat order baru
-• Belum bayar &amp; kirim bukti? Order tidak diproses
-• Order ditolak → alasan akan dikirim ke kamu
-
-─────────────────────
-
-<b>💡 CATATAN</b>
-
-• 1x cek = 1 token (dari cache juga)
-• Token tidak terpotong jika data tidak ditemukan
-• Butuh token? Gunakan <code>/buy &lt;jumlah&gt;</code>
-
-─────────────────────
-🐢 <i>XY Bot v1.0</i>
-`.trim();
+/**
+ * Bangun daftar command
+ * @returns {string}
+ */
+function buildCommands() {
+  return [
+    `📋 <b>DAFTAR COMMAND</b>`,
+    ``,
+    `<b>🔍 Layanan Pencarian</b>`,
+    `/ceknopol &lt;plat&gt; — data kendaraan`,
+    `/ceknama &lt;nama&gt; — data kependudukan`,
+    `/nik2kk &lt;nik&gt; — NIK ke KK`,
+    `/ceknomor &lt;nomor&gt; — pemilik nomor HP`,
+    ``,
+    `<b>💰 Token</b>`,
+    `/token — cek sisa token kamu`,
+    `/buy &lt;jumlah&gt; — beli token via QRIS`,
+  ].join('\n');
+}
 
 /**
- * Register handler /start dan /menu
+ * Bangun pricelist dinamis
+ * @returns {string}
+ */
+function buildPricelist() {
+  const prices = priceService.getAllPrices();
+
+  const lines = [
+    `💰 <b>DAFTAR HARGA</b>`,
+    ``,
+  ];
+
+  for (const { service, price } of prices) {
+    const label = SERVICE_LABELS[service] || service;
+    lines.push(`/<b>${service}</b> — ${price} token  <i>(${label})</i>`);
+  }
+
+  lines.push(``);
+  lines.push(`<i>1 token = ${rupiah(2000)}</i>`);
+  lines.push(`<i>Harga dilihat per layanan. Saldo kurang = ditolak.</i>`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Bangun panduan cara beli token
+ * @returns {string}
+ */
+function buildHowToBuy() {
+  return [
+    `🛒 <b>CARA BELI TOKEN</b>`,
+    ``,
+    `<b>1.</b> Kirim <code>/buy &lt;jumlah&gt;</code>`,
+    `<b>2.</b> Bot kirim QRIS + total bayar`,
+    `<b>3.</b> Scan &amp; bayar sesuai nominal`,
+    `<b>4.</b> Kirim <b>foto bukti transfer</b>`,
+    `<b>5.</b> Tunggu admin verifikasi`,
+    `<b>6.</b> Token masuk otomatis`,
+    ``,
+    `<b>⚠️ Penting</b>`,
+    `• Kirim <b>foto</b> saja — pesan lain membatalkan order`,
+    `• Selesaikan 1 order sebelum buat order baru`,
+    `• Ditolak? Alasan akan dikirim ke kamu`,
+  ].join('\n');
+}
+
+/**
+ * Bangun panduan format input
+ * @returns {string}
+ */
+function buildFormat() {
+  return [
+    `📝 <b>FORMAT INPUT</b>`,
+    ``,
+    `<b>Plat nomor</b>`,
+    `<code>/ceknopol B1234XYZ</code>`,
+    `<code>/ceknopol AB123CD</code>`,
+    ``,
+    `<b>Nama</b>`,
+    `<code>/ceknama BUDI SANTOSO</code>`,
+    ``,
+    `<b>NIK</b> (16 digit)`,
+    `<code>/nik2kk 1277031234560006</code>`,
+    ``,
+    `<b>Nomor HP</b>`,
+    `<code>/ceknomor 08123456789</code>`,
+    `<code>/ceknomor +628123456789</code>`,
+  ].join('\n');
+}
+
+/**
+ * Ambil teks bagian sesuai kunci menu
+ * @param {string} key
+ * @param {number} userId
+ * @returns {string}
+ */
+function buildSection(key, userId) {
+  switch (key) {
+    case 'cmd':
+      return buildCommands();
+    case 'harga':
+      return buildPricelist();
+    case 'beli':
+      return buildHowToBuy();
+    case 'format':
+      return buildFormat();
+    case 'main':
+    default:
+      return buildMainMenu(userId);
+  }
+}
+
+/**
+ * Susun keyboard inline untuk sebuah bagian
+ * @param {string} key - Bagian aktif
+ * @param {number} userId
+ * @returns {object} Inline keyboard markup
+ */
+function buildKeyboard(key, userId) {
+  if (key === 'main') {
+    const rows = [
+      [
+        { text: '📋 Command', callback_data: CB + 'cmd' },
+        { text: '💰 Harga', callback_data: CB + 'harga' },
+      ],
+      [
+        { text: '🛒 Cara Beli', callback_data: CB + 'beli' },
+        { text: '📝 Format', callback_data: CB + 'format' },
+      ],
+    ];
+
+    if (isAnyAdmin(userId)) {
+      rows.push([{ text: '🛡️ Panel Admin', callback_data: CB + 'admin' }]);
+    }
+
+    return { inline_keyboard: rows };
+  }
+
+  if (key === 'admin') {
+    return {
+      inline_keyboard: [[{ text: '◀ Kembali', callback_data: CB + 'main' }]],
+    };
+  }
+
+  return {
+    inline_keyboard: [[{ text: '◀ Kembali', callback_data: CB + 'main' }]],
+  };
+}
+
+/**
+ * Bangun pesan untuk panel admin (shortcut /adminmenu)
+ * @returns {string}
+ */
+function buildAdminShortcut() {
+  return [
+    `🛡️ <b>PANEL ADMIN</b>`,
+    ``,
+    `Ketik <code>/adminmenu</code> untuk panduan lengkap:`,
+    ``,
+    `• Kelola token user`,
+    `• Verifikasi pembelian (/terima, /tolak)`,
+    `• Atur profit (/setprofit)`,
+    `• Atur harga layanan (setprice)`,
+    `• Kelola admin &amp; reseller`,
+  ].join('\n');
+}
+
+/**
+ * Register handler /start, /menu, dan callback tombol
  * @param {import('telegraf').Telegraf} bot - Instance Telegraf
  */
 function register(bot) {
-  bot.command(['start', 'menu'], (ctx) => {
+  const sendMainMenu = (ctx) => {
     const userId = ctx.from.id;
-
-    // Pricelist dinamis (harga per layanan bisa diubah admin)
-    let message = WELCOME_MESSAGE + '\n\n─────────────────────\n\n' + buildPricelist();
-
-    // Sisipkan pintasan panel admin khusus untuk admin/owner
-    if (isAnyAdmin(userId)) {
-      message +=
-        '\n\n─────────────────────\n' +
-        '<b>🛡️ AKSES ADMIN</b>\n\n' +
-        'Kamu terdaftar sebagai admin.\n' +
-        'Gunakan <code>/adminmenu</code> untuk membuka panduan lengkap pengelolaan bot.';
-    }
-
-    ctx.reply(message, {
+    return ctx.reply(buildMainMenu(userId), {
       parse_mode: 'HTML',
       disable_web_page_preview: true,
+      reply_markup: buildKeyboard('main', userId),
     });
+  };
+
+  bot.command(['start', 'menu'], sendMainMenu);
+
+  // ─── Callback tombol menu ────────────────────────────────
+  bot.action(/^menu:/, async (ctx) => {
+    const userId = ctx.from.id;
+    const data = (ctx.callbackQuery && ctx.callbackQuery.data) || '';
+    const key = data.slice(CB.length) || 'main';
+
+    // Bagian khusus admin
+    if (key === 'admin' && !isAnyAdmin(userId)) {
+      await ctx.answerCbQuery('Menu ini khusus admin.', { show_alert: true });
+      return;
+    }
+
+    let text;
+    if (key === 'admin') {
+      text = buildAdminShortcut();
+    } else {
+      text = buildSection(key, userId);
+    }
+
+    try {
+      await ctx.editMessageText(text, {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        reply_markup: buildKeyboard(key, userId),
+      });
+    } catch (err) {
+      // Pesan tidak berubah (mis. klik tombol yang sama) → abaikan
+      if (!/message is not modified/i.test(err.message || '')) {
+        console.error('[start] gagal edit menu:', err.message);
+      }
+    }
+
+    await ctx.answerCbQuery().catch(() => {});
   });
 }
 
