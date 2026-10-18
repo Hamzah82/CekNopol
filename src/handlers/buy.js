@@ -187,10 +187,7 @@ function register(bot) {
       `🛒 <b>Pembelian Token</b>\n` +
       `─────────────────────\n\n` +
       `<b>Order ID:</b> <code>${order.id}</code>\n` +
-      `<b>Jumlah token:</b> ${order.amount}\n` +
-      `<b>Harga/token:</b> ${rupiah(order.pricePerToken)}\n` +
-      `<b>Subtotal:</b> ${rupiah(order.amount * order.pricePerToken)}\n` +
-      `<b>Profit admin:</b> ${rupiah(order.profit)}\n\n` +
+      `<b>Jumlah token:</b> ${order.amount}\n\n` +
       `💰 <b>TOTAL BAYAR: ${rupiah(order.total)}</b>\n\n` +
       `─────────────────────\n` +
       `📸 <b>Silakan scan QRIS di atas</b>, lalu kirim <b>foto bukti transfer</b> ke chat ini.\n\n` +
@@ -250,6 +247,38 @@ function register(bot) {
         `<b>Total:</b> ${rupiah(order.total)}\n\n` +
         `Bukti kamu sudah diteruskan ke admin. Mohon tunggu proses verifikasi.\n` +
         `<i>Token akan otomatis ditambahkan setelah admin menyetujui.</i>`,
+      { parse_mode: 'HTML' }
+    );
+  });
+
+  // ─── Pesan selain foto → batalkan order ──────────────────
+  // Jika user sedang menunggu bukti transfer lalu mengirim pesan
+  // selain foto (teks, sticker, dokumen, voice, video, dll),
+  // order otomatis dibatalkan dan user harus /buy lagi.
+  bot.on('message', async (ctx, next) => {
+    const msg = ctx.message;
+    if (!msg || !ctx.from) return next();
+
+    // Command tetap diproses handler masing-masing
+    if (Array.isArray(msg.entities) && msg.entities.some((e) => e.type === 'bot_command')) return next();
+
+    // Foto ditangani handler photo di atas
+    if (msg.photo) return next();
+
+    // Tidak ada order menggantung -> teruskan ke handler lain
+    const order = orderService.getPendingProofOrder(ctx.from.id);
+    if (!order) return next();
+
+    // Batalkan order
+    orderService.cancelOrder(order.id);
+
+    ctx.reply(
+      `❌ <b>Pembelian dibatalkan</b>\n\n` +
+        `<b>Order ID:</b> <code>${order.id}</code>\n` +
+        `<b>Jumlah:</b> ${order.amount} token\n` +
+        `<b>Total:</b> ${rupiah(order.total)}\n\n` +
+        `Kamu mengirim pesan selain <b>foto bukti transfer</b>, sehingga order otomatis dibatalkan.\n\n` +
+        `Silakan buat order baru dengan <code>/buy &lt;jumlah&gt;</code>, lalu kirim <b>foto</b> bukti transfer.`,
       { parse_mode: 'HTML' }
     );
   });
