@@ -12,6 +12,7 @@ const resellerHandler = require('./handlers/reseller');
 const nik2kkHandler = require('./handlers/nik2kk');
 const ceknomorHandler = require('./handlers/ceknomor');
 const buyHandler = require('./handlers/buy');
+const adminmenuHandler = require('./handlers/adminmenu');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
@@ -52,6 +53,8 @@ function createBot(config) {
   resellerHandler.initSetupAdmins(config.adminIds || []);
   refundService.initSetupAdmins(config.adminIds || []);
   buyHandler.initSetupAdmins(config.adminIds || []);
+  adminmenuHandler.initSetupAdmins(config.adminIds || []);
+  startHandler.initSetupAdmins(config.adminIds || []);
 
   // Register semua handlers
   startHandler.register(bot);
@@ -64,6 +67,7 @@ function createBot(config) {
   nik2kkHandler.register(bot);
   ceknomorHandler.register(bot);
   buyHandler.register(bot);
+  adminmenuHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {
