@@ -3,6 +3,7 @@
  */
 
 const roleManager = require('../services/roleManager');
+const priceService = require('../services/priceService');
 
 /** @type {number[]} */
 let setupAdminIds = [];
@@ -22,6 +23,36 @@ function initSetupAdmins(ids) {
  */
 function isAnyAdmin(userId) {
   return setupAdminIds.includes(Number(userId)) || roleManager.isAdmin(userId);
+}
+
+/**
+ * Bangun teks daftar harga layanan (pricelist)
+ * @returns {string}
+ */
+function buildPricelist() {
+  const prices = priceService.getAllPrices();
+  const labels = {
+    ceknopol: 'Cek Nopol',
+    ceknama: 'Cek Nama',
+    nik2kk: 'NIK ke KK',
+    ceknomor: 'Cek Nomor HP',
+  };
+
+  const lines = [
+    '<b>💰 DAFTAR HARGA LAYANAN</b>',
+    '',
+  ];
+
+  for (const { service, price } of prices) {
+    const label = labels[service] || service;
+    const satuan = price === 1 ? 'token' : 'token';
+    lines.push(`• /${service} — <b>${price} ${satuan}</b>  <i>(${label})</i>`);
+  }
+
+  lines.push('');
+  lines.push('<i>1 token = Rp2.000 — beli lewat /buy</i>');
+
+  return lines.join('\n');
 }
 
 const WELCOME_MESSAGE = `
@@ -106,7 +137,9 @@ Bot cek data kendaraan, kependudukan, &amp; nomor HP berbasis Telegram.
 function register(bot) {
   bot.command(['start', 'menu'], (ctx) => {
     const userId = ctx.from.id;
-    let message = WELCOME_MESSAGE;
+
+    // Pricelist dinamis (harga per layanan bisa diubah admin)
+    let message = WELCOME_MESSAGE + '\n\n─────────────────────\n\n' + buildPricelist();
 
     // Sisipkan pintasan panel admin khusus untuk admin/owner
     if (isAnyAdmin(userId)) {

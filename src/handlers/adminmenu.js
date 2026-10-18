@@ -7,6 +7,7 @@
 
 const roleManager = require('../services/roleManager');
 const orderService = require('../services/orderService');
+const priceService = require('../services/priceService');
 const { formatError } = require('../utils/format');
 
 /** @type {number[]} */
@@ -127,6 +128,21 @@ function buildGuide() {
     ``,
     `Lihat profit tanpa argumen: <code>/setprofit</code>`,
     `<i>Hanya owner. Profit dikunci saat order dibuat.</i>`,
+    ``,
+    `─────────────────────`,
+    `<b>🏷️ HARGA LAYANAN (TOKEN)</b>`,
+    ``,
+    ...priceService.getAllPrices().map(
+      ({ service, price }) => `<code>/${service} setprice &lt;n&gt;</code> — sekarang <b>${price}</b> token`
+    ),
+    ``,
+    `Set harga per layanan, mis. <code>/ceknama setprice 3</code>`,
+    `Lihat harga tanpa argumen: <code>/ceknama setprice</code>`,
+    ``,
+    `Default: 1 token. Jika saldo user kurang dari harga,`,
+    `layanan <b>ditolak</b> (tidak memotong sebagian).`,
+    ``,
+    `<i>Hanya owner.</i>`,
     ``,
     `─────────────────────`,
     `<b>👥 KELOLA ADMIN</b>`,

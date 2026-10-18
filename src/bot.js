@@ -19,6 +19,7 @@ const tokenService = require('./services/tokenManager');
 const roleManager = require('./services/roleManager');
 const refundService = require('./services/refundService');
 const orderService = require('./services/orderService');
+const priceService = require('./services/priceService');
 
 /**
  * Buat dan konfigurasi instance bot
@@ -40,6 +41,7 @@ function createBot(config) {
   tokenService.setDbPath(dbPath);
   roleManager.setDbPath(dbPath);
   orderService.setDbPath(dbPath);
+  priceService.setDbPath(dbPath);
 
   // Inisialisasi API service
   if (!config.apiUrl || !config.apiKey) {
@@ -55,6 +57,10 @@ function createBot(config) {
   buyHandler.initSetupAdmins(config.adminIds || []);
   adminmenuHandler.initSetupAdmins(config.adminIds || []);
   startHandler.initSetupAdmins(config.adminIds || []);
+  cekHandler.initSetupAdmins(config.adminIds || []);
+  ceknamaHandler.initSetupAdmins(config.adminIds || []);
+  nik2kkHandler.initSetupAdmins(config.adminIds || []);
+  ceknomorHandler.initSetupAdmins(config.adminIds || []);
 
   // Register semua handlers
   startHandler.register(bot);

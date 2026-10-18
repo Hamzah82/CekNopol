@@ -7,6 +7,27 @@ const tokenManager = require('../services/tokenManager');
 const cache = require('../services/cache');
 const api = require('../services/api');
 const refundService = require('../services/refundService');
+const priceService = require('../services/priceService');
+
+/** @type {number[]} */
+let setupAdminIds = [];
+
+/**
+ * Inisialisasi admin IDs dari setup.json (main admin)
+ * @param {number[]} ids
+ */
+function initSetupAdmins(ids) {
+  setupAdminIds = ids || [];
+}
+
+/**
+ * Cek apakah user adalah main admin (dari setup.json)
+ * @param {number} userId
+ * @returns {boolean}
+ */
+function isMainAdmin(userId) {
+  return setupAdminIds.includes(Number(userId));
+}
 
 /**
  * Register handler /ceknama
@@ -19,6 +40,43 @@ function register(bot) {
     // Extract nama dari argumen command
     const nama = ctx.message.text.replace(/^\/ceknama(@\w+)?\s*/, '').trim();
 
+    // SETPRICE_BLOCK
+    if (/^setprice(\s|$)/i.test(nama)) {
+      if (!isMainAdmin(userId)) {
+        ctx.reply(formatError('Hanya <b>main admin</b> yang bisa mengatur harga layanan.'), { parse_mode: 'HTML' });
+        return;
+      }
+
+      const nominalRaw = nama.replace(/^setprice/i, '').trim();
+      const current = priceService.getPrice('ceknama');
+
+      if (!nominalRaw) {
+        ctx.reply(
+          `⚙️ <b>Harga /ceknama</b>\n\n` +
+            `Harga saat ini: <b>${current}</b> token\n\n` +
+            `Gunakan: <code>/ceknama setprice &lt;jumlah token&gt;</code>\n` +
+            `Contoh: <code>/ceknama setprice 2</code>`,
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const result = priceService.setPrice('ceknama', nominalRaw);
+      if (!result.success) {
+        ctx.reply(formatError(result.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        `✅ <b>Harga ceknama diperbarui</b>\n\n` +
+          `Harga lama: ${current} token\n` +
+          `Harga baru: <b>${result.price}</b> token\n\n` +
+          `<i>Berlaku untuk pemakaian /ceknama berikutnya.</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
     // 1. Validasi input tidak kosong
     if (!nama) {
       ctx.reply(formatError('Masukkan nama yang ingin dicari.\n\nContoh: /ceknama JANICE'), {
@@ -27,12 +85,24 @@ function register(bot) {
       return;
     }
 
-    // 2. Cek saldo token
+    // Cek saldo token (harga sesuai layanan)
+    const price = priceService.getPrice('ceknama');
     const balance = tokenManager.getTokenBalance(userId);
-    if (balance <= 0) {
-      ctx.reply(formatError('Saldo token tidak mencukupi.\nHubungi admin untuk menambah token.'), {
-        parse_mode: 'HTML',
-      });
+    if (balance < price) {
+      ctx.reply(
+        formatError(
+          `Saldo token tidak mencukupi.
+
+` +
+            `Harga layanan ini: <b>${price}</b> token
+` +
+            `Saldo kamu: <b>${balance}</b> token
+
+` +
+            `Top-up dengan <code>/buy &lt;jumlah&gt;</code>`
+        ),
+        { parse_mode: 'HTML' }
+      );
       return;
     }
 
@@ -46,7 +116,7 @@ function register(bot) {
     const cachedData = cache.getCachedNama(namaNormalized);
 
     if (cachedData) {
-      // Cache HIT → 1 token dialihkan dari user ke main admin + notifikasi
+      // Cache HIT → token (sesuai harga layanan) dialihkan dari user ke main admin + notifikasi
       const dataList = cachedData.data;
       const total = cachedData.total;
 
@@ -64,6 +134,7 @@ function register(bot) {
 
       const { recipientId, notification } = refundService.transferCacheToken({
         userId,
+        amount: price,
         command: '/ceknama',
         query: nama,
       });
@@ -85,7 +156,7 @@ function register(bot) {
     }
 
     // 6. API sukses → kurangi token, simpan ke cache, kirim data
-    tokenManager.deductToken(userId, 1);
+    tokenManager.deductToken(userId, price);
     cache.saveToCacheNama(namaNormalized, { total: result.total, data: result.data });
 
     const total = result.total;
@@ -102,4 +173,4 @@ function register(bot) {
   });
 }
 
-module.exports = { register };
+module.exports = { register, initSetupAdmins };

@@ -39,23 +39,26 @@ function pickNextAdmin() {
 }
 
 /**
- * Transfer 1 token dari user ke main admin (cache-hit):
- * user -1, admin terpilih +1. Total supply konsisten (tidak ada inflasi).
+ * Transfer token dari user ke main admin (cache-hit):
+ * user -amount, admin terpilih +amount. Total supply konsisten (tanpa inflasi).
  *
  * @param {object} params
  * @param {number} params.userId - ID user yang melakukan pencarian
+ * @param {number} [params.amount] - Jumlah token sesuai harga layanan (default 1)
  * @param {string} params.command - Nama command ('/ceknopol' atau '/ceknama')
  * @param {string} params.query - Query yang dicari (plat / nama)
  * @returns {{transferred: boolean, recipientId: number|null, notification: string}}
  */
-function transferCacheToken({ userId, command, query }) {
-  // Potong 1 token dari user
-  tokenManager.deductToken(userId, 1);
+function transferCacheToken({ userId, amount, command, query }) {
+  const tokenAmount = Number.isFinite(Number(amount)) && Number(amount) > 0 ? Math.floor(Number(amount)) : 1;
 
-  // Pilih admin penerima (rotasi) lalu tambah 1 token
+  // Potong token dari user sesuai harga layanan
+  tokenManager.deductToken(userId, tokenAmount);
+
+  // Pilih admin penerima (rotasi) lalu tambah token yang sama
   const recipientId = pickNextAdmin();
   if (recipientId !== null) {
-    tokenManager.addToken(recipientId, 1);
+    tokenManager.addToken(recipientId, tokenAmount);
   }
 
   const notification = [
@@ -65,7 +68,7 @@ function transferCacheToken({ userId, command, query }) {
     `📋 Command: <b>${command}</b>`,
     `🔍 Query: <b>${query}</b>`,
     ``,
-    `💰 Data ditemukan di cache, 1 token dialihkan dari user`,
+    `💰 Data ditemukan di cache, <b>${tokenAmount}</b> token dialihkan dari user`,
     `ke saldo kamu (main admin).`,
   ].join('\n');
 

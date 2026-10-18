@@ -8,6 +8,27 @@ const tokenManager = require('../services/tokenManager');
 const cache = require('../services/cache');
 const api = require('../services/api');
 const refundService = require('../services/refundService');
+const priceService = require('../services/priceService');
+
+/** @type {number[]} */
+let setupAdminIds = [];
+
+/**
+ * Inisialisasi admin IDs dari setup.json (main admin)
+ * @param {number[]} ids
+ */
+function initSetupAdmins(ids) {
+  setupAdminIds = ids || [];
+}
+
+/**
+ * Cek apakah user adalah main admin (dari setup.json)
+ * @param {number} userId
+ * @returns {boolean}
+ */
+function isMainAdmin(userId) {
+  return setupAdminIds.includes(Number(userId));
+}
 
 /**
  * Register handler /ceknopol
@@ -19,6 +40,43 @@ function register(bot) {
 
     // Extract plat dari argumen command
     const rawPlat = ctx.message.text.replace(/^\/ceknopol(@\w+)?\s*/, '').trim();
+
+    // ─── Setprice: atur harga layanan (khusus main admin) ────
+    if (/^setprice(\s|$)/i.test(rawPlat)) {
+      if (!isMainAdmin(userId)) {
+        ctx.reply(formatError('Hanya <b>main admin</b> yang bisa mengatur harga layanan.'), { parse_mode: 'HTML' });
+        return;
+      }
+
+      const nominalRaw = rawPlat.replace(/^setprice/i, '').trim();
+      const current = priceService.getPrice('ceknopol');
+
+      if (!nominalRaw) {
+        ctx.reply(
+          `⚙️ <b>Harga /ceknopol</b>\n\n` +
+            `Harga saat ini: <b>${current}</b> token\n\n` +
+            `Gunakan: <code>/ceknopol setprice &lt;jumlah token&gt;</code>\n` +
+            `Contoh: <code>/ceknopol setprice 2</code>`,
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const result = priceService.setPrice('ceknopol', nominalRaw);
+      if (!result.success) {
+        ctx.reply(formatError(result.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        `✅ <b>Harga ceknopol diperbarui</b>\n\n` +
+          `Harga lama: ${current} token\n` +
+          `Harga baru: <b>${result.price}</b> token\n\n` +
+          `<i>Berlaku untuk pemakaian /ceknopol berikutnya.</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
 
     // 1. Validasi input tidak kosong
     if (!rawPlat) {
@@ -37,12 +95,19 @@ function register(bot) {
       return;
     }
 
-    // 3. Cek saldo token
+    // 3. Cek saldo token (harga sesuai layanan)
+    const price = priceService.getPrice('ceknopol');
     const balance = tokenManager.getTokenBalance(userId);
-    if (balance <= 0) {
-      ctx.reply(formatError('Saldo token tidak mencukupi.\nHubungi admin untuk menambah token.'), {
-        parse_mode: 'HTML',
-      });
+    if (balance < price) {
+      ctx.reply(
+        formatError(
+          `Saldo token tidak mencukupi.\n\n` +
+            `Harga layanan ini: <b>${price}</b> token\n` +
+            `Saldo kamu: <b>${balance}</b> token\n\n` +
+            `Top-up dengan <code>/buy &lt;jumlah&gt;</code>`
+        ),
+        { parse_mode: 'HTML' }
+      );
       return;
     }
 
@@ -56,12 +121,13 @@ function register(bot) {
     const cachedData = cache.getCachedPlat(platNormalized);
 
     if (cachedData) {
-      // Cache HIT → 1 token dialihkan dari user ke main admin + notifikasi
+      // Cache HIT → token (sesuai harga layanan) dialihkan dari user ke main admin + notifikasi
       const formatted = formatKendaraan(cachedData);
       ctx.reply(formatted, { parse_mode: 'HTML' });
 
       const { recipientId, notification } = refundService.transferCacheToken({
         userId,
+        amount: price,
         command: '/ceknopol',
         query: platNormalized,
       });
@@ -83,7 +149,7 @@ function register(bot) {
     }
 
     // 7. API sukses → kurangi token, simpan ke cache, kirim data
-    tokenManager.deductToken(userId, 1);
+    tokenManager.deductToken(userId, price);
     cache.saveToCachePlat(platNormalized, result.data);
 
     const formatted = formatKendaraan(result.data);
@@ -91,4 +157,4 @@ function register(bot) {
   });
 }
 
-module.exports = { register };
+module.exports = { register, initSetupAdmins };
