@@ -46,11 +46,18 @@ if (!fs.existsSync(dbPath)) {
 }
 
 // Pastikan file JSON default ada
-const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.json', 'reseller.json'];
+const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.json', 'reseller.json', 'orders.json', 'settings.json'];
 for (const file of dbFiles) {
   const filePath = path.join(dbPath, file);
   if (!fs.existsSync(filePath)) {
-    const defaultContent = (file === 'admins.json' || file === 'admin.json' || file === 'reseller.json') ? '[]' : '{}';
+    let defaultContent;
+    if (file === 'admins.json' || file === 'admin.json' || file === 'reseller.json') {
+      defaultContent = '[]';
+    } else if (file === 'settings.json') {
+      defaultContent = JSON.stringify({ profit: 0, qrisPath: 'assets/qris.jpg' }, null, 2);
+    } else {
+      defaultContent = '{}';
+    }
     fs.writeFileSync(filePath, defaultContent, 'utf-8');
     console.log(`📄 File database dibuat: ${filePath}`);
   }
