@@ -294,11 +294,16 @@ function register(bot) {
     const raw = ctx.message.text.replace(/^\/setprofit(@\w+)?\s*/, '').trim();
     if (!raw) {
       const current = orderService.getProfit();
+      const hargaSekarang = orderService.getPricePerToken();
       ctx.reply(
         `⚙️ <b>Pengaturan Profit</b>\n\n` +
-          `Profit saat ini: <b>${rupiah(current)}</b>\n\n` +
+          `Profit saat ini: <b>${rupiah(current)}</b>\n` +
+          `Harga token sekarang: <b>${rupiah(hargaSekarang)}</b> / token\n\n` +
+          `<i>Harga token = ${rupiah(orderService.BASE_PRICE_PER_TOKEN)} + profit.</i>\n\n` +
           `Gunakan: <code>/setprofit &lt;nominal&gt;</code>\n` +
-          `Contoh: <code>/setprofit 2000</code>`,
+          `Contoh: <code>/setprofit 100</code> → harga token jadi ${rupiah(
+            orderService.BASE_PRICE_PER_TOKEN + 100
+          )}`,
         { parse_mode: 'HTML' }
       );
       return;
@@ -309,20 +314,22 @@ function register(bot) {
     const nominal = parseInt(cleaned, 10);
 
     if (isNaN(nominal) || nominal < 0) {
-      ctx.reply(formatError('Nominal profit harus berupa angka ≥ 0.\nContoh: <code>/setprofit 2000</code>'), {
+      ctx.reply(formatError('Nominal profit harus berupa angka ≥ 0.\nContoh: <code>/setprofit 100</code>'), {
         parse_mode: 'HTML',
       });
       return;
     }
 
     const newProfit = orderService.setProfit(nominal);
+    const hargaBaru = orderService.getPricePerToken();
     ctx.reply(
       `✅ <b>Profit berhasil diatur</b>\n\n` +
-        `Profit per transaksi: <b>${rupiah(newProfit)}</b>\n` +
-        `Harga token: <b>${rupiah(orderService.PRICE_PER_TOKEN)}</b>\n\n` +
-        `<i>Contoh: beli 5 token → (5 × ${rupiah(orderService.PRICE_PER_TOKEN)}) + ${rupiah(newProfit)} = ${rupiah(
-          5 * orderService.PRICE_PER_TOKEN + newProfit
-        )}</i>`,
+        `Profit: <b>${rupiah(newProfit)}</b> / token\n` +
+        `Harga token: ${rupiah(orderService.BASE_PRICE_PER_TOKEN)} + ${rupiah(newProfit)} = <b>${rupiah(
+          hargaBaru
+        )}</b> / token\n\n` +
+        `<i>Contoh: beli 5 token → 5 × ${rupiah(hargaBaru)} = ${rupiah(5 * hargaBaru)}</i>\n\n` +
+        `<i>Berlaku untuk order berikutnya. Order yang sudah dibuat tetap pakai harga lama.</i>`,
       { parse_mode: 'HTML' }
     );
   });

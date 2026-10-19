@@ -12,9 +12,9 @@
  *   username: string,      // @username (boleh kosong)
  *   fullName: string,      // nama tampilan
  *   amount: number,        // jumlah token yang dibeli
- *   pricePerToken: number, // harga per token saat order dibuat
- *   profit: number,        // profit admin saat order dibuat
- *   total: number,         // amount*pricePerToken + profit
+ *   pricePerToken: number, // harga per token saat order dibuat (2000 + profit)
+ *   profit: number,        // profit admin saat order dibuat (menambah harga per token)
+ *   total: number,         // amount * pricePerToken
  *   status: 'menunggu_bukti' | 'menunggu_verifikasi' | 'diterima' | 'ditolak',
  *   createdAt: string,     // ISO date
  *   updatedAt: string,     // ISO date
@@ -28,8 +28,11 @@
 const fs = require('fs');
 const path = require('path');
 
-/** Harga per token (tetap) */
-const PRICE_PER_TOKEN = 2000;
+/** Harga dasar per token (sebelum ditambah profit admin) */
+const BASE_PRICE_PER_TOKEN = 2000;
+
+/** Alias lama — harga dasar per token */
+const PRICE_PER_TOKEN = BASE_PRICE_PER_TOKEN;
 
 /** Path gambar QRIS statis (relatif terhadap root project) */
 const DEFAULT_QRIS_PATH = 'assets/qris.jpg';
@@ -117,16 +120,32 @@ function getQrisPath() {
 }
 
 /**
+ * Hitung harga per token (dasar + profit admin)
+ * @param {number} [profit] - Profit (default: ambil dari settings)
+ * @returns {number} Harga per token, mis. 2000 + 100 = 2100
+ */
+function getPricePerToken(profit) {
+  const prof = profit === undefined ? getProfit() : Math.max(0, Math.floor(Number(profit) || 0));
+  return BASE_PRICE_PER_TOKEN + prof;
+}
+
+/**
  * Hitung total harga pembelian
- * total = (jumlah token x harga per token) + profit
+ * harga per token = harga dasar + profit
+ * total = jumlah token x harga per token
+ *
+ * Contoh: /setprofit 100 → harga/token 2100
+ *         beli 5 token → 5 x 2100 = 10500
+ *
  * @param {number} amount - Jumlah token
  * @param {number} [profit] - Profit (default: ambil dari settings)
  * @returns {{pricePerToken: number, profit: number, total: number}}
  */
 function calculatePrice(amount, profit) {
   const prof = profit === undefined ? getProfit() : Math.max(0, Math.floor(Number(profit) || 0));
-  const total = amount * PRICE_PER_TOKEN + prof;
-  return { pricePerToken: PRICE_PER_TOKEN, profit: prof, total };
+  const pricePerToken = BASE_PRICE_PER_TOKEN + prof;
+  const total = amount * pricePerToken;
+  return { pricePerToken, profit: prof, total };
 }
 
 /**
@@ -313,7 +332,9 @@ function cancelOrder(orderId) {
 }
 
 module.exports = {
+  BASE_PRICE_PER_TOKEN,
   PRICE_PER_TOKEN,
+  getPricePerToken,
   setDbPath,
   getProfit,
   setProfit,

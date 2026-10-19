@@ -10,6 +10,7 @@
 const roleManager = require('../services/roleManager');
 const priceService = require('../services/priceService');
 const tokenManager = require('../services/tokenManager');
+const orderService = require('../services/orderService');
 
 /** Prefix callback agar tidak bentrok dengan handler lain */
 const CB = 'menu:';
@@ -113,9 +114,10 @@ function buildPricelist() {
     lines.push(`/<b>${service}</b> — ${price} token  <i>(${label})</i>`);
   }
 
+  const hargaToken = orderService.getPricePerToken();
   lines.push(``);
-  lines.push(`<i>1 token = ${rupiah(2000)}</i>`);
-  lines.push(`<i>Harga dilihat per layanan. Saldo kurang = ditolak.</i>`);
+  lines.push(`💵 <b>1 token = ${rupiah(hargaToken)}</b>`);
+  lines.push(`<i>Saldo kurang dari harga layanan = ditolak.</i>`);
 
   return lines.join('\n');
 }

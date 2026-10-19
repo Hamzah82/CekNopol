@@ -54,8 +54,9 @@ function rupiah(n) {
  */
 function buildGuide() {
   const profit = orderService.getProfit();
-  const pricePerToken = orderService.PRICE_PER_TOKEN;
-  const example = 5 * pricePerToken + profit;
+  const basePrice = orderService.BASE_PRICE_PER_TOKEN;
+  const pricePerToken = orderService.getPricePerToken();
+  const example = 5 * pricePerToken;
 
   const lines = [
     `🛡️ <b>PANDUAN OWNER &amp; ADMIN</b>`,
@@ -115,16 +116,20 @@ function buildGuide() {
     `<b>⚙️ ATUR PROFIT</b>`,
     ``,
     `<code>/setprofit &lt;nominal&gt;</code>`,
-    `Atur biaya tambahan tiap pembelian token.`,
+    `Atur profit yang menambah harga tiap token.`,
     ``,
-    `<b>Profit sekarang:</b> <b>${rupiah(profit)}</b>`,
-    `<b>Harga token:</b> ${rupiah(pricePerToken)} / token`,
+    `Profit <b>menambah harga per token</b>.`,
+    ``,
+    `<b>Harga dasar:</b> ${rupiah(basePrice)} / token`,
+    `<b>Profit sekarang:</b> ${rupiah(profit)} / token`,
+    `<b>Harga token jadi:</b> <b>${rupiah(pricePerToken)}</b> / token`,
     ``,
     `Rumus:`,
-    `<code>(jumlah × ${rupiah(pricePerToken)}) + profit</code>`,
+    `<code>harga token = ${rupiah(basePrice)} + profit</code>`,
+    `<code>total = jumlah × harga token</code>`,
     ``,
     `Contoh beli 5 token:`,
-    `(5 × ${rupiah(pricePerToken)}) + ${rupiah(profit)} = <b>${rupiah(example)}</b>`,
+    `5 × ${rupiah(pricePerToken)} = <b>${rupiah(example)}</b>`,
     ``,
     `Lihat profit tanpa argumen: <code>/setprofit</code>`,
     `<i>Hanya owner. Profit dikunci saat order dibuat.</i>`,
