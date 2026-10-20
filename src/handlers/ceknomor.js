@@ -170,6 +170,7 @@ function register(bot) {
         query: String(nomor),
         cost: price,
         source: 'gagal',
+        tokensRemaining: result.tokensRemaining,
       }).catch(() => {});
 
       ctx.reply(formatError(result.error || 'Data nomor HP tidak ditemukan.'), {
@@ -191,6 +192,7 @@ function register(bot) {
       query: String(nomor),
       cost: price,
       source: 'sukses',
+      tokensRemaining: result.tokensRemaining,
     }).catch(() => {});
     cache.saveToCacheNomor(nomorNormalized, result.data);
 

@@ -172,6 +172,7 @@ function register(bot) {
         query: String(nama),
         cost: price,
         source: 'gagal',
+        tokensRemaining: result.tokensRemaining,
       }).catch(() => {});
 
       ctx.reply(formatError(result.error || 'Data tidak ditemukan.'), {
@@ -193,6 +194,7 @@ function register(bot) {
       query: String(nama),
       cost: price,
       source: 'sukses',
+      tokensRemaining: result.tokensRemaining,
     }).catch(() => {});
     cache.saveToCacheNama(namaNormalized, { total: result.total, data: result.data });
 

@@ -169,6 +169,7 @@ function register(bot) {
         query: String(nik),
         cost: price,
         source: 'gagal',
+        tokensRemaining: result.tokensRemaining,
       }).catch(() => {});
 
       ctx.reply(formatError(result.error || 'Data NIK tidak ditemukan.'), {
@@ -190,6 +191,7 @@ function register(bot) {
       query: String(nik),
       cost: price,
       source: 'sukses',
+      tokensRemaining: result.tokensRemaining,
     }).catch(() => {});
     cache.saveToCacheNik2kk(nik, result.data);
 

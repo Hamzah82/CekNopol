@@ -147,9 +147,10 @@ function rupiah(n) {
  * @param {string} params.query - Kata kunci / input yang dicari
  * @param {number} params.cost - Biaya dalam token
  * @param {'sukses'|'gagal'|'cache'} params.source - Sumber hasil
+ * @param {number|null} [params.tokensRemaining] - Sisa token PROVIDER (hanya saat tembak API)
  * @returns {string} Pesan terformat HTML
  */
-function formatLog({ userId, username, fullName, service, command, query, cost, source }) {
+function formatLog({ userId, username, fullName, service, command, query, cost, source, tokensRemaining }) {
   const lines = [
     `📋 <b>LOG PENCARIAN</b>`,
     `─────────────────────`,
@@ -175,7 +176,16 @@ function formatLog({ userId, username, fullName, service, command, query, cost, 
   lines.push(`Query: <code>${escapeHtml(query)}</code>`);
 
   lines.push(``, `<b>💰 Biaya</b>`);
-  lines.push(`Token: <b>${Number(cost)}</b> token`);
+  lines.push(`Token user: <b>${Number(cost)}</b> token`);
+
+  // Sisa token PROVIDER — hanya saat tembak API (bukan cache hit)
+  if (source !== 'cache') {
+    const sisa =
+      tokensRemaining === undefined || tokensRemaining === null || !Number.isFinite(Number(tokensRemaining))
+        ? '-'
+        : String(Number(tokensRemaining));
+    lines.push(`Sisa token provider: <b>${sisa}</b>`);
+  }
 
   if (source === 'cache') {
     lines.push(`<i>Sumber: cache</i>`);

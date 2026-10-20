@@ -165,6 +165,7 @@ function register(bot) {
         query: String(platNormalized),
         cost: price,
         source: 'gagal',
+        tokensRemaining: result.tokensRemaining,
       }).catch(() => {});
 
       ctx.reply(formatError(result.error || 'Data kendaraan tidak ditemukan.'), {
@@ -186,6 +187,7 @@ function register(bot) {
       query: String(platNormalized),
       cost: price,
       source: 'sukses',
+      tokensRemaining: result.tokensRemaining,
     }).catch(() => {});
     cache.saveToCachePlat(platNormalized, result.data);
 

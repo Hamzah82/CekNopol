@@ -8,6 +8,21 @@ let apiUrl = '';
 let apiKey = '';
 
 /**
+ * Ambil sisa token provider dari response API.
+ * Field standar: tokens_remaining (sama untuk semua layanan).
+ *
+ * @param {object} body - Body response API
+ * @returns {number|null} Sisa token, atau null bila tidak tersedia
+ */
+function extractTokensRemaining(body) {
+  if (!body || typeof body !== 'object') return null;
+  const val = body.tokens_remaining;
+  if (val === undefined || val === null) return null;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
  * Inisialisasi konfigurasi API
  * @param {string} url - Base URL API (tanpa trailing slash)
  * @param {string} key - API key
@@ -37,15 +52,30 @@ async function cekNopol(platNormalized) {
 
     // Validasi response sesuai PRD
     if (!body || body.success !== true) {
-      return { success: false, data: null, error: 'Data kendaraan tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        error: 'Data kendaraan tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
     if (!Array.isArray(body.data) || body.data.length === 0) {
-      return { success: false, data: null, error: 'Data kendaraan tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        error: 'Data kendaraan tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
     // Ambil elemen pertama dari array data
-    return { success: true, data: body.data[0], error: null };
+    return {
+      success: true,
+      data: body.data[0],
+      error: null,
+      tokensRemaining: extractTokensRemaining(body),
+    };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
       return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
@@ -76,14 +106,32 @@ async function cekNama(nama) {
     const body = response.data;
 
     if (!body || body.success !== true) {
-      return { success: false, data: null, total: 0, error: 'Data tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        total: 0,
+        error: 'Data tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
     if (!Array.isArray(body.data) || body.data.length === 0) {
-      return { success: false, data: null, total: 0, error: 'Data tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        total: 0,
+        error: 'Data tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
-    return { success: true, data: body.data, total: body.total || body.data.length, error: null };
+    return {
+      success: true,
+      data: body.data,
+      total: body.total || body.data.length,
+      error: null,
+      tokensRemaining: extractTokensRemaining(body),
+    };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
       return { success: false, data: null, total: 0, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
@@ -114,14 +162,29 @@ async function cekNik2kk(nik) {
     const body = response.data;
 
     if (!body || body.success !== true) {
-      return { success: false, data: null, error: 'Data NIK tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        error: 'Data NIK tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
     if (!body.data) {
-      return { success: false, data: null, error: 'Data NIK tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        error: 'Data NIK tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
-    return { success: true, data: body.data, error: null };
+    return {
+      success: true,
+      data: body.data,
+      error: null,
+      tokensRemaining: extractTokensRemaining(body),
+    };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
       return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
@@ -152,14 +215,29 @@ async function cekNomor(nomor) {
     const body = response.data;
 
     if (!body || body.success !== true) {
-      return { success: false, data: null, error: 'Data nomor HP tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        error: 'Data nomor HP tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
     if (!body.data) {
-      return { success: false, data: null, error: 'Data nomor HP tidak ditemukan.' };
+      return {
+        success: false,
+        data: null,
+        error: 'Data nomor HP tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
     }
 
-    return { success: true, data: body.data, error: null };
+    return {
+      success: true,
+      data: body.data,
+      error: null,
+      tokensRemaining: extractTokensRemaining(body),
+    };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
       return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
