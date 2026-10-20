@@ -11,6 +11,7 @@ const roleManager = require('../services/roleManager');
 const priceService = require('../services/priceService');
 const tokenManager = require('../services/tokenManager');
 const orderService = require('../services/orderService');
+const affiliateService = require('../services/affiliateService');
 
 /** Prefix callback agar tidak bentrok dengan handler lain */
 const CB = 'menu:';
@@ -259,7 +260,33 @@ function register(bot) {
     });
   };
 
-  bot.command(['start', 'menu'], sendMainMenu);
+  bot.command(['start', 'menu'], async (ctx) => {
+    const userId = ctx.from.id;
+
+    // ─── Deteksi referral dari link /start aff_<ID> ────────
+    // Hanya untuk user BARU: user yang belum punya saldo token tercatat
+    // & belum punya referral. Mencegah pembajakan user lama.
+    try {
+      const payload = ctx.message.text.replace(/^\/start(@\w+)?\s*/i, '').trim();
+      const m = payload.match(/^aff_(\d+)$/i);
+
+      if (m) {
+        const affiliatorId = parseInt(m[1], 10);
+        const isNewUser =
+          !affiliateService.hasReferral(userId) &&
+          tokenManager.getTokenBalance(userId) === 0 &&
+          affiliateService.isAffiliator(affiliatorId);
+
+        if (isNewUser) {
+          affiliateService.setReferral(userId, affiliatorId);
+        }
+      }
+    } catch (err) {
+      console.error('[start] gagal memproses referral:', err.message);
+    }
+
+    return sendMainMenu(ctx);
+  });
 
   // ─── Callback tombol menu ────────────────────────────────
   bot.action(/^menu:/, async (ctx) => {

@@ -14,6 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const orderService = require('../services/orderService');
+const affiliateService = require('../services/affiliateService');
 const tokenManager = require('../services/tokenManager');
 const { formatError } = require('../utils/format');
 
@@ -73,6 +74,15 @@ function formatOrderDetail(order) {
 
   if (order.username) lines.push(`<b>Username:</b> @${order.username}`);
   if (order.fullName) lines.push(`<b>Nama:</b> ${escapeHtml(order.fullName)}`);
+
+  // Info affiliator (bila user direferensikan)
+  const refId = affiliateService.getReferrer(order.userId);
+  if (refId) {
+    const aff = affiliateService.getAffiliator(refId);
+    lines.push(
+      `<b>Affiliator:</b> <code>${refId}</code>${aff && aff.username ? ` (@${aff.username})` : ''}`
+    );
+  }
 
   lines.push(``, `─────────────────────`, ``);
   lines.push(`<b>Jumlah token:</b> ${order.amount}`);
@@ -333,6 +343,14 @@ function register(bot) {
 
     const newProfit = orderService.setProfit(nominal);
     const hargaBaru = orderService.getPricePerToken();
+
+    // Turunkan profit affiliator yang melebihi profit admin baru
+    let clamped = [];
+    try {
+      clamped = affiliateService.clampToAdminProfit(newProfit);
+    } catch (err) {
+      console.error('[buy] gagal menyesuaikan profit affiliator:', err.message);
+    }
     ctx.reply(
       `✅ <b>Profit berhasil diatur</b>\n\n` +
         `Profit: <b>${rupiah(newProfit)}</b> / token\n` +
@@ -340,7 +358,16 @@ function register(bot) {
           hargaBaru
         )}</b> / token\n\n` +
         `<i>Contoh: beli 5 token → 5 × ${rupiah(hargaBaru)} = ${rupiah(5 * hargaBaru)}</i>\n\n` +
-        `<i>Berlaku untuk order berikutnya. Order yang sudah dibuat tetap pakai harga lama.</i>`,
+        `<i>Berlaku untuk order berikutnya. Order yang sudah dibuat tetap pakai harga lama.</i>` +
+        (clamped.length
+          ? `\n\n⚠️ <b>Profit affiliator disesuaikan otomatis:</b>\n` +
+            clamped
+              .map(
+                (c) =>
+                  `• <code>${c.userId}</code>: ${rupiah(c.from)} → <b>${rupiah(c.to)}</b> / token`
+              )
+              .join('\n')
+          : ''),
       { parse_mode: 'HTML' }
     );
   });
@@ -409,6 +436,18 @@ async function handleVerification(ctx, action) {
     const newBalance = tokenManager.addToken(target.userId, target.amount);
     orderService.setStatus(target.id, 'diterima');
 
+    // ─── Bagikan profit affiliator (jika user direferensikan) ───
+    let affReward = null;
+    try {
+      affReward = require('./aff').rewardAffiliate({
+        userId: target.userId,
+        amount: target.amount,
+        adminProfitPerToken: target.profit,
+      });
+    } catch (err) {
+      console.error('[buy] gagal hitung reward affiliator:', err.message);
+    }
+
     ctx.reply(
       `✅ <b>Order diterima</b>\n\n` +
         `<b>Order ID:</b> <code>${target.id}</code>\n` +
@@ -416,6 +455,9 @@ async function handleVerification(ctx, action) {
         `<b>Token ditransfer:</b> ${target.amount}\n` +
         `<b>Total dibayar:</b> ${rupiah(target.total)}\n` +
         `<b>Saldo user sekarang:</b> ${newBalance} token\n\n` +
+        (affReward && affReward.affiliatorId
+          ? `\n🤝 <b>Affiliator:</b> <code>${affReward.affiliatorId}</code> — ${rupiah(affReward.earned)}\n`
+          : '') +
         `─────────────────────\n` +
         `<b>Saldo kamu (admin):</b> ${adminBalanceBefore} → <b>${adminBalanceAfter}</b> token` +
         (adminBalanceAfter < 0 ? `\n⚠️ <i>Saldo admin minus — suplai token tetap seimbang.</i>` : ''),
@@ -434,6 +476,24 @@ async function handleVerification(ctx, action) {
           `Terima kasih sudah berbelanja! 🐢`,
         { parse_mode: 'HTML' }
       );
+      // Notifikasi ke affiliator (bila ada)
+      if (affReward && affReward.affiliatorId && affReward.earned > 0) {
+        try {
+          const affData = affiliateService.getAffiliator(affReward.affiliatorId);
+          await ctx.telegram.sendMessage(
+            affReward.affiliatorId,
+            `🤝 <b>Komisi Affiliator</b>\n\n` +
+              `<b>Order ID:</b> <code>${target.id}</code>\n` +
+              `<b>Token dibeli:</b> ${target.amount}\n` +
+              `<b>Komisi kamu:</b> <b>${rupiah(affReward.earned)}</b>\n` +
+              `<b>Saldo sekarang:</b> ${rupiah((affData && affData.balance) || 0)}\n\n` +
+              `<i>Cek saldo: <code>/aff saldo</code></i>`,
+            { parse_mode: 'HTML' }
+          );
+        } catch (err) {
+          console.error(`[buy] gagal notifikasi affiliator ${affReward.affiliatorId}:`, err.message);
+        }
+      }
     } catch (err) {
       console.error(`[buy] Gagal notifikasi user ${target.userId}:`, err.message);
       ctx.reply(`⚠️ Token sudah ditambahkan, tapi gagal mengirim notifikasi ke user (mungkin bot diblokir).`);

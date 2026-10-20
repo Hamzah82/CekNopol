@@ -17,6 +17,7 @@ const setlogHandler = require('./handlers/setlog');
 const statsHandler = require('./handlers/stats');
 const cleardepoHandler = require('./handlers/cleardepo');
 const cekkkHandler = require('./handlers/cekkk');
+const affHandler = require('./handlers/aff');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
@@ -26,6 +27,7 @@ const orderService = require('./services/orderService');
 const priceService = require('./services/priceService');
 const logService = require('./services/logService');
 const statsService = require('./services/statsService');
+const affiliateService = require('./services/affiliateService');
 
 /**
  * Buat dan konfigurasi instance bot
@@ -50,6 +52,7 @@ function createBot(config) {
   priceService.setDbPath(dbPath);
   logService.setDbPath(dbPath);
   statsService.setDbPath(dbPath);
+  affiliateService.setDbPath(dbPath);
 
   // Inisialisasi API service
   if (!config.apiUrl || !config.apiKey) {
@@ -73,6 +76,7 @@ function createBot(config) {
   statsHandler.initSetupAdmins(config.adminIds || []);
   cleardepoHandler.initSetupAdmins(config.adminIds || []);
   cekkkHandler.initSetupAdmins(config.adminIds || []);
+  affHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
 
   // Register semua handlers
   startHandler.register(bot);
@@ -90,6 +94,7 @@ function createBot(config) {
   statsHandler.register(bot);
   cleardepoHandler.register(bot);
   cekkkHandler.register(bot);
+  affHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {
