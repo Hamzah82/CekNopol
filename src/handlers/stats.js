@@ -153,17 +153,23 @@ function buildStats() {
   } else {
     lines.push(``, `<b>Hari ini</b>`);
     lines.push(`Omzet: <b>${rupiah(revToday.omzet)}</b>`);
-    lines.push(`Profit: <b>${rupiah(revToday.profit)}</b>`);
+    lines.push(`Profit kotor: ${rupiah(revToday.profit)}`);
+    lines.push(`Komisi affiliator: ${rupiah(revToday.affiliateReward)}`);
+    lines.push(`Profit bersih: <b>${rupiah(revToday.netProfit)}</b>`);
     lines.push(`Order: ${revToday.diterima} diterima`);
 
     lines.push(``, `<b>30 hari</b>`);
     lines.push(`Omzet: <b>${rupiah(revMonth.omzet)}</b>`);
-    lines.push(`Profit: <b>${rupiah(revMonth.profit)}</b>`);
+    lines.push(`Profit kotor: ${rupiah(revMonth.profit)}`);
+    lines.push(`Komisi affiliator: ${rupiah(revMonth.affiliateReward)}`);
+    lines.push(`Profit bersih: <b>${rupiah(revMonth.netProfit)}</b>`);
     lines.push(`Order: ${revMonth.diterima} diterima`);
 
     lines.push(``, `<b>Total</b>`);
     lines.push(`Omzet: <b>${rupiah(revAll.omzet)}</b>`);
-    lines.push(`Profit: <b>${rupiah(revAll.profit)}</b>`);
+    lines.push(`Profit kotor: ${rupiah(revAll.profit)}`);
+    lines.push(`Komisi affiliator: ${rupiah(revAll.affiliateReward)}`);
+    lines.push(`Profit bersih: <b>${rupiah(revAll.netProfit)}</b>`);
     lines.push(`Modal: ${rupiah(revAll.modal)}`);
     lines.push(`Token terjual: <b>${revAll.tokens}</b>`);
     lines.push(``, `<b>Status order</b>`);

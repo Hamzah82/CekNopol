@@ -444,6 +444,13 @@ async function handleVerification(ctx, action) {
         amount: target.amount,
         adminProfitPerToken: target.profit,
       });
+      if (affReward && affReward.affiliatorId) {
+        orderService.setAffiliateReward(target.id, {
+          affiliateId: affReward.affiliatorId,
+          reward: affReward.earned,
+          profitPerToken: affReward.profitPerToken,
+        });
+      }
     } catch (err) {
       console.error('[buy] gagal hitung reward affiliator:', err.message);
     }

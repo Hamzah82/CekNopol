@@ -22,6 +22,9 @@
  *   adminChatId: number|null, // chat_id admin penerima bukti
  *   adminMessageId: number|null, // message_id pesan bukti di chat admin
  *   reason: string|null,   // alasan penolakan
+ *   affiliateId: number|null,      // affiliator user (jika ada)
+ *   affiliateReward: number,       // total komisi yang dibayarkan ke affiliator (rupiah)
+ *   affiliateProfitPerToken: number, // komisi per token saat order diproses
  * }
  */
 
@@ -211,6 +214,9 @@ function createOrder({ userId, username, fullName, amount }) {
     adminChatId: null,
     adminMessageId: null,
     reason: null,
+    affiliateId: null,
+    affiliateReward: 0,
+    affiliateProfitPerToken: 0,
   };
 
   orders[id] = order;
@@ -335,9 +341,11 @@ function cancelOrder(orderId) {
 /**
  * Rekap pendapatan dari order yang berstatus DITERIMA.
  *
- * Omzet   = total yang dibayar user
- * Profit  = profit admin (sudah termasuk dalam omzet)
- * Modal   = omzet - profit (harga dasar token)
+ * Omzet     = total yang dibayar user
+ * Profit    = profit KOTOR (belum dipotong komisi affiliator)
+ * AffReward = total komisi yang dibayarkan ke affiliator
+ * NetProfit = profit kotor - komisi affiliator (milik admin utama)
+ * Modal     = omzet - profit (biaya dasar token)
  *
  * @param {object} [opts]
  * @param {Date} [opts.since] - Hanya order dibuat >= tanggal ini
@@ -349,7 +357,9 @@ function getRevenue({ since } = {}) {
 
   const acc = {
     omzet: 0,
-    profit: 0,
+    profit: 0,          // profit kotor (sebelum komisi affiliator)
+    affiliateReward: 0, // total komisi yang dibayarkan ke affiliator
+    netProfit: 0,       // profit bersih milik admin utama
     modal: 0,
     tokens: 0,
     diterima: 0,
@@ -373,9 +383,12 @@ function getRevenue({ since } = {}) {
 
     acc.omzet += Number(o.total) || 0;
     acc.profit += Number(o.profit) * (Number(o.amount) || 0);
+    acc.affiliateReward += Number(o.affiliateReward) || 0;
     acc.tokens += Number(o.amount) || 0;
   }
 
+  // Profit bersih = profit kotor - komisi affiliator
+  acc.netProfit = acc.profit - acc.affiliateReward;
   acc.modal = acc.omzet - acc.profit;
   return acc;
 }
@@ -423,6 +436,32 @@ function countRejectedOrders() {
   return { count, totalNominal };
 }
 
+
+/**
+ * Catat komisi affiliator pada order.
+ * Dipanggil saat /terima agar profit bersih bisa dihitung ulang nanti.
+ *
+ * @param {string} orderId
+ * @param {object} params
+ * @param {number} params.affiliateId
+ * @param {number} params.reward - total komisi (rupiah)
+ * @param {number} params.profitPerToken - komisi per token
+ * @returns {object|null}
+ */
+function setAffiliateReward(orderId, { affiliateId, reward, profitPerToken }) {
+  const orders = readOrders();
+  const order = orders[orderId];
+  if (!order) return null;
+
+  order.affiliateId = Number(affiliateId) || null;
+  order.affiliateReward = Math.max(0, Math.floor(Number(reward) || 0));
+  order.affiliateProfitPerToken = Math.max(0, Math.floor(Number(profitPerToken) || 0));
+
+  orders[orderId] = order;
+  writeOrders(orders);
+  return order;
+}
+
 module.exports = {
   BASE_PRICE_PER_TOKEN,
   PRICE_PER_TOKEN,
@@ -441,6 +480,7 @@ module.exports = {
   cancelOrder,
   readSettings,
   getRevenue,
+  setAffiliateReward,
   clearRejectedOrders,
   countRejectedOrders,
 };
