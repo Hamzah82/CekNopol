@@ -9,6 +9,8 @@ const roleManager = require('../services/roleManager');
 const orderService = require('../services/orderService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
+const affiliateService = require('../services/affiliateService');
+const userService = require('../services/userService');
 const { formatError } = require('../utils/format');
 
 /** @type {number[]} */
@@ -163,6 +165,38 @@ function buildGuide() {
     `<i>Hanya owner.</i>`,
     ``,
     `─────────────────────`,
+    `<b>👥 DAFTAR USER</b>`,
+    ``,
+    `<code>/users</code> — daftar user (10 per halaman)`,
+    `<code>/users &lt;halaman&gt;</code> — pindah halaman`,
+    `<code>/users &lt;ID&gt;</code> — cari user / affiliator pengundang`,
+    ``,
+    `Menampilkan: ID user, affiliator yang mengundang, tanggal bergabung.`,
+    `Total user tercatat: <b>${userService.countUsers()}</b>`,
+    ``,
+    `<i>Semua admin bisa memakai.</i>`,
+    ``,
+    `─────────────────────`,
+    `<b>💾 BACKUP DATABASE</b>`,
+    ``,
+    `<code>/backup</code> — kirim folder DB sebagai file .zip`,
+    ``,
+    `• Nama file: <code>db-backup-YYYY-MM-DD_HHMM.zip</code>`,
+    `• <b>Hanya bisa di chat pribadi</b> (data sensitif)`,
+    `• File temporer dihapus otomatis setelah dikirim`,
+    ``,
+    `<i>Semua admin bisa memakai.</i>`,
+    ``,
+    `─────────────────────`,
+    `<b>🧹 BERSIHKAN DEPOSIT</b>`,
+    ``,
+    `<code>/cleardepo</code> — hapus semua order berstatus <b>ditolak</b>`,
+    ``,
+    `Order diterima & menunggu tidak disentuh.`,
+    ``,
+    `<i>Hanya owner.</i>`,
+    ``,
+    `─────────────────────`,
     `<b>📋 LOG PENCARIAN</b>`,
     ``,
     `Tambahkan bot ke grup, lalu jalankan di grup itu:`,
@@ -179,6 +213,35 @@ function buildGuide() {
     `<b>Tidak</b> menampilkan hasil pencarian.`,
     ``,
     `Hanya 1 grup aktif. Hanya owner.`,
+    ``,
+    `─────────────────────`,
+    `<b>🤝 AFFILIATOR</b>`,
+    ``,
+    `<b>Kelola (owner):</b>`,
+    `<code>/aff add &lt;ID&gt;</code>`,
+    `<code>/aff remove &lt;ID&gt;</code>`,
+    `<code>/aff list</code>`,
+    `<code>/aff setprofit &lt;ID&gt; &lt;nominal&gt;</code>`,
+    `<code>/aff wdlist</code>`,
+    ``,
+    `<b>Command affiliator:</b>`,
+    `<code>/aff link</code> — link referral`,
+    `<code>/aff saldo</code> — saldo & pendapatan`,
+    `<code>/aff wd &lt;wallet&gt; &lt;nominal&gt; &lt;no&gt;</code> — cairkan`,
+    ``,
+    `Affiliator terdaftar: <b>${affiliateService.getAllAffiliators().length}</b>`,
+    ``,
+    `Profit affiliator <b>per token</b>, tidak boleh melebihi profit admin.`,
+    `Turun otomatis bila profit admin diturunkan.`,
+    ``,
+    `Pembagian saat <code>/terima</code>:`,
+    `komisi = min(profit affiliator, profit admin) × jumlah token`,
+    `Sisanya milik admin (lihat <code>/stats</code>).`,
+    ``,
+    `Minimum penarikan: <b>${rupiah(affiliateService.MIN_WITHDRAW)}</b>`,
+    `Wallet: ${affiliateService.WALLETS.map((w) => affiliateService.walletLabel(w)).join(', ')}`,
+    ``,
+    `<b>Penarikan:</b> notifikasi masuk ke owner → reply <code>/done</code>.`,
     ``,
     `─────────────────────`,
     `<b>👥 KELOLA ADMIN</b>`,
@@ -221,7 +284,7 @@ function buildGuide() {
     `• Order menggantung = user belum kirim bukti`,
     `• User tidak bisa buat order baru sebelum order lama selesai`,
     `• Gagal kirim notifikasi = user mungkin blokir bot`,
-    `• Backup folder <code>db/</code> secara berkala`,
+    `• Backup rutin: <code>/backup</code> (kirim zip ke chat pribadi)`,
     `• <code>setup.json</code> jangan di-commit ke Git`,
     ``,
     `─────────────────────`,
@@ -231,12 +294,41 @@ function buildGuide() {
   return lines.join('\n');
 }
 
+
+/**
+ * Pecah pesan panjang agar tidak melebihi batas Telegram (4096 karakter).
+ * Memecah di batas baris supaya tag HTML tidak terbelah.
+ *
+ * @param {string} text
+ * @param {number} [limit]
+ * @returns {string[]}
+ */
+function splitMessage(text, limit = 3800) {
+  if (text.length <= limit) return [text];
+
+  const lines = text.split('\n');
+  const chunks = [];
+  let current = '';
+
+  for (const line of lines) {
+    if ((current + '\n' + line).length > limit) {
+      if (current) chunks.push(current);
+      current = line;
+    } else {
+      current = current ? current + '\n' + line : line;
+    }
+  }
+  if (current) chunks.push(current);
+
+  return chunks.length ? chunks : [text];
+}
+
 /**
  * Register handler /adminmenu
  * @param {import('telegraf').Telegraf} bot - Instance Telegraf
  */
 function register(bot) {
-  bot.command('adminmenu', (ctx) => {
+  bot.command('adminmenu', async (ctx) => {
     const userId = ctx.from.id;
 
     if (!isAnyAdmin(userId)) {
@@ -244,11 +336,20 @@ function register(bot) {
       return;
     }
 
-    ctx.reply(buildGuide(), {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-    });
+    const guide = buildGuide();
+    const chunks = splitMessage(guide);
+
+    for (let i = 0; i < chunks.length; i++) {
+      let text = chunks[i];
+      if (chunks.length > 1) {
+        text += `\n\n<i>(bagian ${i + 1}/${chunks.length})</i>`;
+      }
+      await ctx.reply(text, {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      });
+    }
   });
 }
 
-module.exports = { register, initSetupAdmins, buildGuide };
+module.exports = { register, initSetupAdmins, buildGuide, splitMessage };
