@@ -15,6 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const statsService = require('./statsService');
 
 let dbPath = './db';
 
@@ -210,6 +211,19 @@ function formatLog({ userId, username, fullName, service, command, query, cost, 
  * @returns {Promise<boolean>} true jika terkirim
  */
 async function sendLog(telegram, params) {
+  // Catat statistik lebih dulu — tetap tercatat walau grup log belum diset
+  try {
+    statsService.recordSearch({
+      userId: params.userId,
+      service: params.serviceKey || params.service,
+      cost: params.cost,
+      source: params.source,
+      tokensRemaining: params.tokensRemaining,
+    });
+  } catch (err) {
+    console.error('[logService] Gagal mencatat statistik:', err.message);
+  }
+
   const chatId = getLogChatId();
   if (!chatId) return false;
 

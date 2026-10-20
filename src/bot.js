@@ -14,6 +14,7 @@ const ceknomorHandler = require('./handlers/ceknomor');
 const buyHandler = require('./handlers/buy');
 const adminmenuHandler = require('./handlers/adminmenu');
 const setlogHandler = require('./handlers/setlog');
+const statsHandler = require('./handlers/stats');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
@@ -22,6 +23,7 @@ const refundService = require('./services/refundService');
 const orderService = require('./services/orderService');
 const priceService = require('./services/priceService');
 const logService = require('./services/logService');
+const statsService = require('./services/statsService');
 
 /**
  * Buat dan konfigurasi instance bot
@@ -45,6 +47,7 @@ function createBot(config) {
   orderService.setDbPath(dbPath);
   priceService.setDbPath(dbPath);
   logService.setDbPath(dbPath);
+  statsService.setDbPath(dbPath);
 
   // Inisialisasi API service
   if (!config.apiUrl || !config.apiKey) {
@@ -65,6 +68,7 @@ function createBot(config) {
   nik2kkHandler.initSetupAdmins(config.adminIds || []);
   ceknomorHandler.initSetupAdmins(config.adminIds || []);
   setlogHandler.initSetupAdmins(config.adminIds || []);
+  statsHandler.initSetupAdmins(config.adminIds || []);
 
   // Register semua handlers
   startHandler.register(bot);
@@ -79,6 +83,7 @@ function createBot(config) {
   buyHandler.register(bot);
   adminmenuHandler.register(bot);
   setlogHandler.register(bot);
+  statsHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {
