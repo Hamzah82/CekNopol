@@ -16,13 +16,7 @@ const orderService = require('../services/orderService');
 const CB = 'menu:';
 
 /** Label layanan untuk tampilan */
-const SERVICE_LABELS = {
-  ceknopol: 'Cek Nopol',
-  ceknama: 'Cek Nama',
-  nik2kk: 'NIK ke KK',
-  ceknomor: 'Cek Nomor HP',
-  cekKK: 'Cek KK',
-};
+
 
 /** @type {number[]} */
 let setupAdminIds = [];
@@ -111,9 +105,10 @@ function buildPricelist() {
     ``,
   ];
 
-  for (const { service, price } of prices) {
-    const label = SERVICE_LABELS[service] || service;
-    lines.push(`/<b>${service}</b> — ${price} token  <i>(${label})</i>`);
+  for (const item of prices) {
+    const { command, price } = item;
+    const label = item.label || item.service;
+    lines.push(`/<b>${command}</b> — ${price} token  <i>(${label})</i>`);
   }
 
   const hargaToken = orderService.getPricePerToken();

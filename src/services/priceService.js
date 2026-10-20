@@ -16,8 +16,27 @@
 const fs = require('fs');
 const path = require('path');
 
-/** Daftar layanan yang didukung */
-const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor', 'cekKK'];
+/**
+ * Daftar layanan yang didukung.
+ * PENTING: semua kunci HURUF KECIL agar konsisten saat pencarian/penyimpanan.
+ * Nama command yang dipakai user boleh beda (mis. /cekKK), tapi kunci
+ * internalnya tetap 'cekkk'.
+ */
+const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor', 'cekkk'];
+
+/** Nama command tampilan (bila beda dari kunci internal) */
+const SERVICE_COMMANDS = {
+  cekkk: 'cekKK',
+};
+
+/** Label tampilan tiap layanan */
+const SERVICE_LABELS = {
+  ceknopol: 'Cek Nopol',
+  ceknama: 'Cek Nama',
+  nik2kk: 'NIK ke KK',
+  ceknomor: 'Cek Nomor HP',
+  cekkk: 'Cek KK',
+};
 
 /** Harga default (token) untuk semua layanan */
 const DEFAULT_PRICE = 1;
@@ -72,9 +91,20 @@ function readPrices() {
     }
     const raw = fs.readFileSync(filePath, 'utf-8');
     const data = JSON.parse(raw);
+
+    // Normalisasi kunci lama: cocokkan tanpa peduli huruf besar/kecil
+    const lowered = {};
+    if (data && typeof data === 'object') {
+      for (const [k, v] of Object.entries(data)) {
+        if (typeof v === 'number' || typeof v === 'string') {
+          lowered[String(k).toLowerCase()] = v;
+        }
+      }
+    }
+
     const result = {};
     for (const s of SERVICES) {
-      const v = Number(data[s]);
+      const v = Number(lowered[s]);
       result[s] = Number.isFinite(v) && v > 0 ? Math.floor(v) : DEFAULT_PRICE;
     }
     return result;
@@ -142,11 +172,18 @@ function setPrice(service, amount) {
  */
 function getAllPrices() {
   const prices = readPrices();
-  return SERVICES.map((s) => ({ service: s, price: prices[s] }));
+  return SERVICES.map((s) => ({
+    service: s,
+    command: SERVICE_COMMANDS[s] || s,
+    label: SERVICE_LABELS[s] || s,
+    price: prices[s],
+  }));
 }
 
 module.exports = {
   SERVICES,
+  SERVICE_LABELS,
+  SERVICE_COMMANDS,
   DEFAULT_PRICE,
   MAX_PRICE,
   setDbPath,

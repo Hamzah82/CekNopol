@@ -139,7 +139,8 @@ function buildGuide() {
     `<b>🏷️ HARGA LAYANAN (TOKEN)</b>`,
     ``,
     ...priceService.getAllPrices().map(
-      ({ service, price }) => `<code>/${service} setprice &lt;n&gt;</code> — sekarang <b>${price}</b> token`
+      ({ command, label, price }) =>
+        `<code>/${command} setprice &lt;n&gt;</code> — ${label}: <b>${price}</b> token`
     ),
     ``,
     `Set harga per layanan, mis. <code>/ceknama setprice 3</code>`,

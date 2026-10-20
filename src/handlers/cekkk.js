@@ -66,7 +66,7 @@ function register(bot) {
       }
 
       const nominalRaw = arg.replace(/^setprice/i, '').trim();
-      const current = priceService.getPrice('cekKK');
+      const current = priceService.getPrice('cekkk');
 
       if (!nominalRaw) {
         ctx.reply(
@@ -79,7 +79,7 @@ function register(bot) {
         return;
       }
 
-      const result = priceService.setPrice('cekKK', nominalRaw);
+      const result = priceService.setPrice('cekkk', nominalRaw);
       if (!result.success) {
         ctx.reply(formatError(result.error), { parse_mode: 'HTML' });
         return;
@@ -124,7 +124,7 @@ function register(bot) {
     }
 
     // ─── Cek saldo ──────────────────────────────────────────
-    const price = priceService.getPrice('cekKK');
+    const price = priceService.getPrice('cekkk');
     const balance = tokenManager.getTokenBalance(userId);
     if (balance < price) {
       ctx.reply(
@@ -177,7 +177,7 @@ function register(bot) {
           username: ctx.from.username || '',
           fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
           service: 'Cek KK',
-          serviceKey: 'cekKK',
+          serviceKey: 'cekkk',
           command: '/cekKK',
           query: String(arg),
           cost: price,
@@ -199,7 +199,7 @@ function register(bot) {
           username: ctx.from.username || '',
           fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
           service: 'Cek KK',
-          serviceKey: 'cekKK',
+          serviceKey: 'cekkk',
           command: '/cekKK',
           query: String(arg),
           cost: price,
@@ -233,7 +233,7 @@ function register(bot) {
         username: ctx.from.username || '',
         fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
         service: 'Cek KK',
-        serviceKey: 'cekKK',
+        serviceKey: 'cekkk',
         command: '/cekKK',
         query: String(arg),
         cost: price,
