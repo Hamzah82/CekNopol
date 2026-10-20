@@ -10,6 +10,7 @@ const api = require('../services/api');
 const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
+const cooldownService = require('../services/cooldownService');
 
 // Regex validasi nomor HP: 08xx atau +628xx (min 10 digit, max 15 digit)
 const NOMOR_REGEX = /^(0|\+62)\d{8,13}$/;
@@ -98,6 +99,21 @@ function register(bot) {
       return;
     }
 
+    // Anti-spam: batasi 1 permintaan per user tiap 10 detik
+    const cd = cooldownService.check(userId);
+    if (cd.blocked) {
+      ctx.reply(
+        formatError(
+          `Terlalu cepat.
+
+` +
+            `Tunggu <b>${cd.remaining} detik</b> lagi sebelum memakai layanan berikutnya.`
+        ),
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
     // Cek saldo token (harga sesuai layanan)
     const price = priceService.getPrice('ceknomor');
     const balance = tokenManager.getTokenBalance(userId);
@@ -118,6 +134,9 @@ function register(bot) {
       );
       return;
     }
+
+    // Saldo cukup — tandai cooldown
+    cooldownService.mark(userId);
 
     // Kirim typing indicator
     await ctx.sendChatAction('typing');

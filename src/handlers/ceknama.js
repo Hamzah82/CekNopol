@@ -9,6 +9,7 @@ const api = require('../services/api');
 const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
+const cooldownService = require('../services/cooldownService');
 
 /** @type {number[]} */
 let setupAdminIds = [];
@@ -86,6 +87,21 @@ function register(bot) {
       return;
     }
 
+    // Anti-spam: batasi 1 permintaan per user tiap 10 detik
+    const cd = cooldownService.check(userId);
+    if (cd.blocked) {
+      ctx.reply(
+        formatError(
+          `Terlalu cepat.
+
+` +
+            `Tunggu <b>${cd.remaining} detik</b> lagi sebelum memakai layanan berikutnya.`
+        ),
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
     // Cek saldo token (harga sesuai layanan)
     const price = priceService.getPrice('ceknama');
     const balance = tokenManager.getTokenBalance(userId);
@@ -106,6 +122,9 @@ function register(bot) {
       );
       return;
     }
+
+    // Saldo cukup — tandai cooldown
+    cooldownService.mark(userId);
 
     // 3. Normalisasi nama (hapus spasi, uppercase)
     const namaNormalized = cache.normalizeKey(nama);

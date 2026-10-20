@@ -10,6 +10,7 @@ const api = require('../services/api');
 const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
+const cooldownService = require('../services/cooldownService');
 
 /** @type {number[]} */
 let setupAdminIds = [];
@@ -96,7 +97,22 @@ function register(bot) {
       return;
     }
 
-    // 3. Cek saldo token (harga sesuai layanan)
+    // Anti-spam: batasi 1 permintaan per user tiap 10 detik
+    const cd = cooldownService.check(userId);
+    if (cd.blocked) {
+      ctx.reply(
+        formatError(
+          `Terlalu cepat.
+
+` +
+            `Tunggu <b>${cd.remaining} detik</b> lagi sebelum memakai layanan berikutnya.`
+        ),
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    // Cek saldo token (harga sesuai layanan)
     const price = priceService.getPrice('ceknopol');
     const balance = tokenManager.getTokenBalance(userId);
     if (balance < price) {
@@ -111,6 +127,9 @@ function register(bot) {
       );
       return;
     }
+
+    // Saldo cukup — tandai cooldown
+    cooldownService.mark(userId);
 
     // 4. Normalisasi plat
     const platNormalized = normalizePlat(rawPlat);
