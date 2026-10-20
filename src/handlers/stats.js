@@ -137,10 +137,43 @@ function buildStats() {
     }
   }
 
-  // Ringkasan penjualan token
-  lines.push(``, `─────────────────────`, `<b>💰 PENJUALAN TOKEN</b>`);
+  // ─── Pendapatan nyata dari order yang DITERIMA ───────────
+  const now = new Date();
+  const startToday = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  startToday.setHours(0, 0, 0, 0);
+
+  const revToday = orderService.getRevenue({ since: startToday });
+  const revMonth = orderService.getRevenue({ since: new Date(now.getTime() - 30 * 86400000) });
+  const revAll = orderService.getRevenue();
+
+  lines.push(``, `─────────────────────`, `<b>💵 PENDAPATAN (order diterima)</b>`);
+
+  if (!revAll.diterima) {
+    lines.push(`<i>Belum ada order yang diterima.</i>`);
+  } else {
+    lines.push(``, `<b>Hari ini</b>`);
+    lines.push(`Omzet: <b>${rupiah(revToday.omzet)}</b>`);
+    lines.push(`Profit: <b>${rupiah(revToday.profit)}</b>`);
+    lines.push(`Order: ${revToday.diterima} diterima`);
+
+    lines.push(``, `<b>30 hari</b>`);
+    lines.push(`Omzet: <b>${rupiah(revMonth.omzet)}</b>`);
+    lines.push(`Profit: <b>${rupiah(revMonth.profit)}</b>`);
+    lines.push(`Order: ${revMonth.diterima} diterima`);
+
+    lines.push(``, `<b>Total</b>`);
+    lines.push(`Omzet: <b>${rupiah(revAll.omzet)}</b>`);
+    lines.push(`Profit: <b>${rupiah(revAll.profit)}</b>`);
+    lines.push(`Modal: ${rupiah(revAll.modal)}`);
+    lines.push(`Token terjual: <b>${revAll.tokens}</b>`);
+    lines.push(``, `<b>Status order</b>`);
+    lines.push(`Diterima: ${revAll.diterima} | Ditolak: ${revAll.ditolak} | Pending: ${revAll.pending}`);
+  }
+
+  // Harga & profit saat ini (bukan akumulatif)
+  lines.push(``, `─────────────────────`, `<b>🏷️ HARGA SAAT INI</b>`);
   lines.push(`Harga: <b>${rupiah(orderService.getPricePerToken())}</b> / token`);
-  lines.push(`Profit admin: <b>${rupiah(orderService.getProfit())}</b> / token`);
+  lines.push(`Profit: <b>${rupiah(orderService.getProfit())}</b> / token`);
 
   lines.push(``, `─────────────────────`, `🐢 <i>XY Bot — Statistik</i>`);
 

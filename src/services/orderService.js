@@ -331,6 +331,55 @@ function cancelOrder(orderId) {
   return true;
 }
 
+
+/**
+ * Rekap pendapatan dari order yang berstatus DITERIMA.
+ *
+ * Omzet   = total yang dibayar user
+ * Profit  = profit admin (sudah termasuk dalam omzet)
+ * Modal   = omzet - profit (harga dasar token)
+ *
+ * @param {object} [opts]
+ * @param {Date} [opts.since] - Hanya order dibuat >= tanggal ini
+ * @returns {object} Rekap pendapatan
+ */
+function getRevenue({ since } = {}) {
+  const orders = Object.values(readOrders());
+  const sinceTs = since ? new Date(since).getTime() : null;
+
+  const acc = {
+    omzet: 0,
+    profit: 0,
+    modal: 0,
+    tokens: 0,
+    diterima: 0,
+    ditolak: 0,
+    pending: 0,
+  };
+
+  for (const o of orders) {
+    const created = new Date(o.createdAt).getTime();
+
+    // Hitung status untuk SEMUA order (termasuk di luar rentang bila tanpa since)
+    const statusCounted = !sinceTs || created >= sinceTs;
+    if (statusCounted) {
+      if (o.status === 'diterima') acc.diterima += 1;
+      else if (o.status === 'ditolak') acc.ditolak += 1;
+      else acc.pending += 1;
+    }
+
+    if (o.status !== 'diterima') continue;
+    if (sinceTs && created < sinceTs) continue;
+
+    acc.omzet += Number(o.total) || 0;
+    acc.profit += Number(o.profit) * (Number(o.amount) || 0);
+    acc.tokens += Number(o.amount) || 0;
+  }
+
+  acc.modal = acc.omzet - acc.profit;
+  return acc;
+}
+
 module.exports = {
   BASE_PRICE_PER_TOKEN,
   PRICE_PER_TOKEN,
@@ -348,4 +397,5 @@ module.exports = {
   setStatus,
   cancelOrder,
   readSettings,
+  getRevenue,
 };
