@@ -9,6 +9,7 @@ const cache = require('../services/cache');
 const api = require('../services/api');
 const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
+const logService = require('../services/logService');
 
 // Regex validasi nomor HP: 08xx atau +628xx (min 10 digit, max 15 digit)
 const NOMOR_REGEX = /^(0|\+62)\d{8,13}$/;
@@ -139,6 +140,18 @@ function register(bot) {
       if (recipientId !== null) {
         ctx.telegram.sendMessage(recipientId, notification, { parse_mode: 'HTML' }).catch(() => {});
       }
+
+      // Log ke grup (tanpa hasil pencarian)
+      logService.sendLog(ctx.telegram, {
+        userId,
+        username: ctx.from.username || '',
+        fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+        service: 'Cek Nomor HP',
+        command: '/ceknomor',
+        query: String(nomor),
+        cost: price,
+        source: 'cache',
+      }).catch(() => {});
       return;
     }
 
@@ -147,6 +160,18 @@ function register(bot) {
 
     if (!result.success) {
       // API gagal atau data tidak ditemukan → JANGAN kurangi token
+      // Log percobaan gagal (biaya tetap ditulis sesuai harga layanan)
+      logService.sendLog(ctx.telegram, {
+        userId,
+        username: ctx.from.username || '',
+        fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+        service: 'Cek Nomor HP',
+        command: '/ceknomor',
+        query: String(nomor),
+        cost: price,
+        source: 'gagal',
+      }).catch(() => {});
+
       ctx.reply(formatError(result.error || 'Data nomor HP tidak ditemukan.'), {
         parse_mode: 'HTML',
       });
@@ -155,6 +180,18 @@ function register(bot) {
 
     // 6. API sukses → kurangi token, simpan ke cache, kirim data
     tokenManager.deductToken(userId, price);
+
+    // Log ke grup (tanpa hasil pencarian)
+    logService.sendLog(ctx.telegram, {
+      userId,
+      username: ctx.from.username || '',
+      fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+      service: 'Cek Nomor HP',
+      command: '/ceknomor',
+      query: String(nomor),
+      cost: price,
+      source: 'sukses',
+    }).catch(() => {});
     cache.saveToCacheNomor(nomorNormalized, result.data);
 
     const formatted = formatNomor(result.data);

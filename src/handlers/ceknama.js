@@ -8,6 +8,7 @@ const cache = require('../services/cache');
 const api = require('../services/api');
 const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
+const logService = require('../services/logService');
 
 /** @type {number[]} */
 let setupAdminIds = [];
@@ -141,6 +142,18 @@ function register(bot) {
       if (recipientId !== null) {
         ctx.telegram.sendMessage(recipientId, notification, { parse_mode: 'HTML' }).catch(() => {});
       }
+
+      // Log ke grup (tanpa hasil pencarian)
+      logService.sendLog(ctx.telegram, {
+        userId,
+        username: ctx.from.username || '',
+        fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+        service: 'Cek Nama',
+        command: '/ceknama',
+        query: String(nama),
+        cost: price,
+        source: 'cache',
+      }).catch(() => {});
       return;
     }
 
@@ -149,6 +162,18 @@ function register(bot) {
 
     if (!result.success) {
       // API gagal atau data tidak ditemukan → JANGAN kurangi token
+      // Log percobaan gagal (biaya tetap ditulis sesuai harga layanan)
+      logService.sendLog(ctx.telegram, {
+        userId,
+        username: ctx.from.username || '',
+        fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+        service: 'Cek Nama',
+        command: '/ceknama',
+        query: String(nama),
+        cost: price,
+        source: 'gagal',
+      }).catch(() => {});
+
       ctx.reply(formatError(result.error || 'Data tidak ditemukan.'), {
         parse_mode: 'HTML',
       });
@@ -157,6 +182,18 @@ function register(bot) {
 
     // 6. API sukses → kurangi token, simpan ke cache, kirim data
     tokenManager.deductToken(userId, price);
+
+    // Log ke grup (tanpa hasil pencarian)
+    logService.sendLog(ctx.telegram, {
+      userId,
+      username: ctx.from.username || '',
+      fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+      service: 'Cek Nama',
+      command: '/ceknama',
+      query: String(nama),
+      cost: price,
+      source: 'sukses',
+    }).catch(() => {});
     cache.saveToCacheNama(namaNormalized, { total: result.total, data: result.data });
 
     const total = result.total;

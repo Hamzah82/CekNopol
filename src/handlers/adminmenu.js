@@ -8,6 +8,7 @@
 const roleManager = require('../services/roleManager');
 const orderService = require('../services/orderService');
 const priceService = require('../services/priceService');
+const logService = require('../services/logService');
 const { formatError } = require('../utils/format');
 
 /** @type {number[]} */
@@ -148,6 +149,24 @@ function buildGuide() {
     `layanan <b>ditolak</b> (tidak memotong sebagian).`,
     ``,
     `<i>Hanya owner.</i>`,
+    ``,
+    `─────────────────────`,
+    `<b>📋 LOG PENCARIAN</b>`,
+    ``,
+    `Tambahkan bot ke grup, lalu jalankan di grup itu:`,
+    `<code>/setlog</code> — jadikan grup ini tempat log`,
+    `<code>/unsetlog</code> — matikan log`,
+    ``,
+    `Status: ${
+      logService.getLogChatId()
+        ? `<b>AKTIF</b> → <code>${logService.getConfig().title || logService.getLogChatId()}</code>`
+        : '<b>BELUM DISET</b>'
+    }`,
+    ``,
+    `Log berisi: username, ID user, layanan, query, biaya token.`,
+    `<b>Tidak</b> menampilkan hasil pencarian.`,
+    ``,
+    `Hanya 1 grup aktif. Hanya owner.`,
     ``,
     `─────────────────────`,
     `<b>👥 KELOLA ADMIN</b>`,

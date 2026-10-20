@@ -9,6 +9,7 @@ const cache = require('../services/cache');
 const api = require('../services/api');
 const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
+const logService = require('../services/logService');
 
 // Regex validasi NIK: 16 digit angka
 const NIK_REGEX = /^\d{16}$/;
@@ -138,6 +139,18 @@ function register(bot) {
       if (recipientId !== null) {
         ctx.telegram.sendMessage(recipientId, notification, { parse_mode: 'HTML' }).catch(() => {});
       }
+
+      // Log ke grup (tanpa hasil pencarian)
+      logService.sendLog(ctx.telegram, {
+        userId,
+        username: ctx.from.username || '',
+        fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+        service: 'NIK ke KK',
+        command: '/nik2kk',
+        query: String(nik),
+        cost: price,
+        source: 'cache',
+      }).catch(() => {});
       return;
     }
 
@@ -146,6 +159,18 @@ function register(bot) {
 
     if (!result.success) {
       // API gagal atau data tidak ditemukan → JANGAN kurangi token
+      // Log percobaan gagal (biaya tetap ditulis sesuai harga layanan)
+      logService.sendLog(ctx.telegram, {
+        userId,
+        username: ctx.from.username || '',
+        fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+        service: 'NIK ke KK',
+        command: '/nik2kk',
+        query: String(nik),
+        cost: price,
+        source: 'gagal',
+      }).catch(() => {});
+
       ctx.reply(formatError(result.error || 'Data NIK tidak ditemukan.'), {
         parse_mode: 'HTML',
       });
@@ -154,6 +179,18 @@ function register(bot) {
 
     // 6. API sukses → kurangi token, simpan ke cache, kirim data
     tokenManager.deductToken(userId, price);
+
+    // Log ke grup (tanpa hasil pencarian)
+    logService.sendLog(ctx.telegram, {
+      userId,
+      username: ctx.from.username || '',
+      fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
+      service: 'NIK ke KK',
+      command: '/nik2kk',
+      query: String(nik),
+      cost: price,
+      source: 'sukses',
+    }).catch(() => {});
     cache.saveToCacheNik2kk(nik, result.data);
 
     const formatted = formatNik2kk(result.data);
