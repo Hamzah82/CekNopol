@@ -262,4 +262,85 @@ async function cekNomor(nomor) {
   }
 }
 
-module.exports = { initApi, cekNopol, cekNama, cekNik2kk, cekNomor };
+
+/**
+ * Cek data Kartu Keluarga (KK) via API eksternal.
+ *
+ * Response berisi:
+ *   data.kk_terbaru -> objek data KK terbaru (bisa kosong/null)
+ *   data.kk_lama    -> array data KK lama (bisa kosong)
+ *
+ * Keduanya dikembalikan apa adanya; penentuan mana yang ditampilkan
+ * dilakukan di handler.
+ *
+ * @param {string} nokk - Nomor KK 16 digit
+ * @returns {Promise<{success: boolean, data: object|null, error: string|null, tokensRemaining: number|null}>}
+ */
+async function cekKK(nokk) {
+  try {
+    const endpoint = `${apiUrl}/api/kk`;
+    const response = await axios.get(endpoint, {
+      params: {
+        nokk: nokk,
+        key: apiKey,
+      },
+      timeout: REQUEST_TIMEOUT_MS,
+    });
+
+    const body = response.data;
+
+    if (!body || body.success !== true) {
+      return {
+        success: false,
+        data: null,
+        error: 'Data KK tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
+    }
+
+    if (!body.data) {
+      return {
+        success: false,
+        data: null,
+        error: 'Data KK tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
+    }
+
+    const terbaru = body.data.kk_terbaru;
+    const lama = Array.isArray(body.data.kk_lama) ? body.data.kk_lama : [];
+
+    // Normalisasi: terbaru dianggap ada bila objeknya berisi
+    const hasTerbaru =
+      terbaru && typeof terbaru === 'object' && Object.keys(terbaru).length > 0;
+
+    if (!hasTerbaru && lama.length === 0) {
+      return {
+        success: false,
+        data: null,
+        error: 'Data KK tidak ditemukan.',
+        tokensRemaining: extractTokensRemaining(body),
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        kk_terbaru: hasTerbaru ? terbaru : null,
+        kk_lama: lama,
+      },
+      error: null,
+      tokensRemaining: extractTokensRemaining(body),
+    };
+  } catch (err) {
+    if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
+      return { success: false, data: null, error: 'Server terlalu lama merespons (timeout 90 detik). Data mungkin masih diproses provider — jangan ulangi terlalu cepat.' };
+    }
+    if (err.response) {
+      return { success: false, data: null, error: `Server mengembalikan error (${err.response.status}).` };
+    }
+    return { success: false, data: null, error: 'Gagal menghubungi server. Periksa koneksi internet.' };
+  }
+}
+
+module.exports = { initApi, cekNopol, cekNama, cekNik2kk, cekNomor, cekKK };

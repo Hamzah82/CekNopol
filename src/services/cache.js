@@ -150,6 +150,36 @@ function saveToCacheNomor(nomorNormalized, data) {
   writeJsonFile('nomor.json', cache);
 }
 
+
+// ─── Cache KK (db/kk.json) ───────────────────────────────────
+
+/**
+ * Ambil data KK dari cache
+ * @param {string} nokkNormalized - Nomor KK yang sudah dinormalisasi
+ * @returns {object|null} Data KK (berisi kk_terbaru & kk_lama) atau null
+ */
+function getCachedKK(nokkNormalized) {
+  const cache = readJsonFile('kk.json');
+  return cache[nokkNormalized] || null;
+}
+
+/**
+ * Simpan hasil pencarian KK ke cache.
+ * Kedua bagian disimpan: kk_terbaru dan kk_lama.
+ *
+ * @param {string} nokkNormalized - Nomor KK yang sudah dinormalisasi
+ * @param {object} data - { kk_terbaru, kk_lama }
+ */
+function saveToCacheKK(nokkNormalized, data) {
+  const cache = readJsonFile('kk.json');
+  cache[nokkNormalized] = {
+    kk_terbaru: data.kk_terbaru || null,
+    kk_lama: Array.isArray(data.kk_lama) ? data.kk_lama : [],
+    cachedAt: new Date().toISOString(),
+  };
+  writeJsonFile('kk.json', cache);
+}
+
 module.exports = {
   setDbPath,
   normalizeKey,
@@ -165,4 +195,7 @@ module.exports = {
   // Nomor
   getCachedNomor,
   saveToCacheNomor,
+  // KK
+  getCachedKK,
+  saveToCacheKK,
 };

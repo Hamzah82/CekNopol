@@ -17,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 
 /** Daftar layanan yang didukung */
-const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor'];
+const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor', 'cekKK'];
 
 /** Harga default (token) untuk semua layanan */
 const DEFAULT_PRICE = 1;

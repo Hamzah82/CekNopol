@@ -21,6 +21,7 @@ const SERVICE_LABELS = {
   ceknama: 'Cek Nama',
   nik2kk: 'NIK ke KK',
   ceknomor: 'Cek Nomor HP',
+  cekKK: 'Cek KK',
 };
 
 /** @type {number[]} */
@@ -90,6 +91,7 @@ function buildCommands() {
     `/ceknama &lt;nama&gt; — data kependudukan`,
     `/nik2kk &lt;nik&gt; — NIK ke KK`,
     `/ceknomor &lt;nomor&gt; — pemilik nomor HP`,
+    `/cekKK &lt;noKK&gt; — data seluruh anggota keluarga`,
     ``,
     `<b>💰 Token</b>`,
     `/token — cek sisa token kamu`,
@@ -165,6 +167,9 @@ function buildFormat() {
     `<b>Nomor HP</b>`,
     `<code>/ceknomor 08123456789</code>`,
     `<code>/ceknomor +628123456789</code>`,
+    ``,
+    `<b>No. KK</b> (16 digit)`,
+    `<code>/cekKK 1277031234560003</code>`,
   ].join('\n');
 }
 
