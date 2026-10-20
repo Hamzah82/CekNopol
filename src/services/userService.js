@@ -133,6 +133,25 @@ function forget(userId) {
   return true;
 }
 
+
+/**
+ * Ambil semua user yang tercatat, diurutkan dari yang paling lama.
+ * @returns {Array<{userId: string, firstSeen: string}>}
+ */
+function getAllUsers() {
+  const all = readUsers();
+  return Object.entries(all)
+    .map(([userId, data]) => ({
+      userId,
+      firstSeen: (data && data.firstSeen) || null,
+    }))
+    .sort((a, b) => {
+      const ta = a.firstSeen ? new Date(a.firstSeen).getTime() : 0;
+      const tb = b.firstSeen ? new Date(b.firstSeen).getTime() : 0;
+      return ta - tb;
+    });
+}
+
 module.exports = {
   setDbPath,
   isKnown,
@@ -140,5 +159,6 @@ module.exports = {
   checkAndMark,
   getUser,
   countUsers,
+  getAllUsers,
   forget,
 };
