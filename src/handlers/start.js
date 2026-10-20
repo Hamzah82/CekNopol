@@ -12,6 +12,7 @@ const priceService = require('../services/priceService');
 const tokenManager = require('../services/tokenManager');
 const orderService = require('../services/orderService');
 const affiliateService = require('../services/affiliateService');
+const userService = require('../services/userService');
 
 /** Prefix callback agar tidak bentrok dengan handler lain */
 const CB = 'menu:';
@@ -263,21 +264,26 @@ function register(bot) {
   bot.command(['start', 'menu'], async (ctx) => {
     const userId = ctx.from.id;
 
-    // ─── Deteksi referral dari link /start aff_<ID> ────────
-    // Hanya untuk user BARU: user yang belum punya saldo token tercatat
-    // & belum punya referral. Mencegah pembajakan user lama.
+    // ─── Deteksi user baru & referral ──────────────────────
+    //
+    // Status "user baru" ditentukan dari db/users.json (pernah-terlihat),
+    // BUKAN dari saldo token. Saldo 0 tidak bisa dijadikan patokan karena
+    // user lama yang tokennya habis juga bersaldo 0.
     try {
       const payload = ctx.message.text.replace(/^\/start(@\w+)?\s*/i, '').trim();
       const m = payload.match(/^aff_(\d+)$/i);
 
-      if (m) {
-        const affiliatorId = parseInt(m[1], 10);
-        const isNewUser =
-          !affiliateService.hasReferral(userId) &&
-          tokenManager.getTokenBalance(userId) === 0 &&
-          affiliateService.isAffiliator(affiliatorId);
+      // Cek dulu status SEBELUM dicatat
+      const isFirstTime = !userService.isKnown(userId);
 
-        if (isNewUser) {
+      // Baru catat setelah diketahui statusnya
+      userService.markSeen(userId);
+
+      // Referral hanya berlaku untuk user yang benar-benar baru
+      if (m && isFirstTime) {
+        const affiliatorId = parseInt(m[1], 10);
+
+        if (affiliateService.isAffiliator(affiliatorId) && !affiliateService.hasReferral(userId)) {
           affiliateService.setReferral(userId, affiliatorId);
         }
       }

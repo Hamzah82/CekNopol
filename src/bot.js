@@ -28,6 +28,7 @@ const priceService = require('./services/priceService');
 const logService = require('./services/logService');
 const statsService = require('./services/statsService');
 const affiliateService = require('./services/affiliateService');
+const userService = require('./services/userService');
 
 /**
  * Buat dan konfigurasi instance bot
@@ -53,6 +54,7 @@ function createBot(config) {
   logService.setDbPath(dbPath);
   statsService.setDbPath(dbPath);
   affiliateService.setDbPath(dbPath);
+  userService.setDbPath(dbPath);
 
   // Inisialisasi API service
   if (!config.apiUrl || !config.apiKey) {
