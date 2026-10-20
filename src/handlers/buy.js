@@ -37,6 +37,17 @@ function isMainAdmin(userId) {
   return setupAdminIds.includes(Number(userId));
 }
 
+
+/**
+ * Ambil ID main admin pertama (sumber saldo untuk transfer token).
+ * /terima hanya bisa dijalankan main admin, jadi daftar ini pasti terisi.
+ *
+ * @returns {number}
+ */
+function getMainAdminId() {
+  return Number(setupAdminIds[0]);
+}
+
 /**
  * Format nominal rupiah
  * @param {number} n
@@ -389,7 +400,12 @@ async function handleVerification(ctx, action) {
   }
 
   if (action === 'diterima') {
-    // Tambahkan token ke user
+    // Token ditransfer dari saldo MAIN ADMIN ke pembeli (supply seimbang).
+    // Saldo admin boleh minus agar transfer tetap bisa terjadi.
+    const adminId = getMainAdminId();
+
+    const adminBalanceBefore = tokenManager.getTokenBalance(adminId);
+    const adminBalanceAfter = tokenManager.deductTokenAllowNegative(adminId, target.amount);
     const newBalance = tokenManager.addToken(target.userId, target.amount);
     orderService.setStatus(target.id, 'diterima');
 
@@ -397,9 +413,12 @@ async function handleVerification(ctx, action) {
       `✅ <b>Order diterima</b>\n\n` +
         `<b>Order ID:</b> <code>${target.id}</code>\n` +
         `<b>User:</b> <code>${target.userId}</code>\n` +
-        `<b>Token ditambahkan:</b> ${target.amount}\n` +
+        `<b>Token ditransfer:</b> ${target.amount}\n` +
         `<b>Total dibayar:</b> ${rupiah(target.total)}\n` +
-        `<b>Saldo user sekarang:</b> ${newBalance} token`,
+        `<b>Saldo user sekarang:</b> ${newBalance} token\n\n` +
+        `─────────────────────\n` +
+        `<b>Saldo kamu (admin):</b> ${adminBalanceBefore} → <b>${adminBalanceAfter}</b> token` +
+        (adminBalanceAfter < 0 ? `\n⚠️ <i>Saldo admin minus — suplai token tetap seimbang.</i>` : ''),
       { parse_mode: 'HTML' }
     );
 

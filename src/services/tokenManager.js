@@ -110,7 +110,32 @@ function setToken(userId, amount) {
   writeTokens(tokens);
 }
 
-module.exports = { setDbPath, getTokenBalance, deductToken, addToken, setToken, readTokens, getAllTokens, transferToken };
+
+/**
+ * Kurangi saldo token TANPA batas bawah (boleh minus).
+ *
+ * Dipakai saat admin utama mentransfer token ke pembeli: saldo admin
+ * berkurang berapa pun, termasuk sampai minus, agar total supply
+ * (user + admin) tetap seimbang.
+ *
+ * Beda dengan deductToken() yang menolak bila saldo tidak cukup dan
+ * memaksa minimal 0.
+ *
+ * @param {number|string} userId - Telegram User ID
+ * @param {number} amount - Jumlah token yang dikurangi (> 0)
+ * @returns {number} Saldo baru (bisa negatif)
+ */
+function deductTokenAllowNegative(userId, amount) {
+  const tokens = readTokens();
+  const key = String(userId);
+  const current = tokens[key] || 0;
+  const n = Math.floor(Number(amount)) || 0;
+
+  tokens[key] = current - n;
+  writeTokens(tokens);
+  return tokens[key];
+}
+
 /**
  * Dapatkan semua token user (untuk admin list)
  * @returns {Array<{userId: string, balance: number}>} Array user dengan token
@@ -152,3 +177,15 @@ function transferToken(fromUserId, toUserId, amount) {
     toBalance: tokens[toKey],
   };
 }
+
+module.exports = {
+  setDbPath,
+  getTokenBalance,
+  deductToken,
+  deductTokenAllowNegative,
+  addToken,
+  setToken,
+  readTokens,
+  getAllTokens,
+  transferToken,
+};
