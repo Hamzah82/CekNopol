@@ -15,6 +15,7 @@ const buyHandler = require('./handlers/buy');
 const adminmenuHandler = require('./handlers/adminmenu');
 const setlogHandler = require('./handlers/setlog');
 const statsHandler = require('./handlers/stats');
+const cleardepoHandler = require('./handlers/cleardepo');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
@@ -69,6 +70,7 @@ function createBot(config) {
   ceknomorHandler.initSetupAdmins(config.adminIds || []);
   setlogHandler.initSetupAdmins(config.adminIds || []);
   statsHandler.initSetupAdmins(config.adminIds || []);
+  cleardepoHandler.initSetupAdmins(config.adminIds || []);
 
   // Register semua handlers
   startHandler.register(bot);
@@ -84,6 +86,7 @@ function createBot(config) {
   adminmenuHandler.register(bot);
   setlogHandler.register(bot);
   statsHandler.register(bot);
+  cleardepoHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {

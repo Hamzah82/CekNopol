@@ -380,6 +380,49 @@ function getRevenue({ since } = {}) {
   return acc;
 }
 
+
+/**
+ * Hapus SEMUA order berstatus 'ditolak' dari database.
+ *
+ * @returns {{deleted: number, ids: string[], totalNominal: number}}
+ */
+function clearRejectedOrders() {
+  const orders = readOrders();
+  const ids = [];
+  let totalNominal = 0;
+
+  for (const [id, o] of Object.entries(orders)) {
+    if (o && o.status === 'ditolak') {
+      ids.push(id);
+      totalNominal += Number(o.total) || 0;
+      delete orders[id];
+    }
+  }
+
+  if (ids.length > 0) writeOrders(orders);
+
+  return { deleted: ids.length, ids, totalNominal };
+}
+
+/**
+ * Hitung jumlah order ditolak (tanpa menghapus)
+ * @returns {{count: number, totalNominal: number}}
+ */
+function countRejectedOrders() {
+  const orders = Object.values(readOrders());
+  let count = 0;
+  let totalNominal = 0;
+
+  for (const o of orders) {
+    if (o && o.status === 'ditolak') {
+      count += 1;
+      totalNominal += Number(o.total) || 0;
+    }
+  }
+
+  return { count, totalNominal };
+}
+
 module.exports = {
   BASE_PRICE_PER_TOKEN,
   PRICE_PER_TOKEN,
@@ -398,4 +441,6 @@ module.exports = {
   cancelOrder,
   readSettings,
   getRevenue,
+  clearRejectedOrders,
+  countRejectedOrders,
 };
