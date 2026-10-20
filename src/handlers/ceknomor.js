@@ -11,6 +11,7 @@ const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const cooldownService = require('../services/cooldownService');
+const { sendLoading, clearLoading } = require('../utils/loading');
 
 // Regex validasi nomor HP: 08xx atau +628xx (min 10 digit, max 15 digit)
 const NOMOR_REGEX = /^(0|\+62)\d{8,13}$/;
@@ -138,14 +139,15 @@ function register(bot) {
     // Saldo cukup — tandai cooldown
     cooldownService.mark(userId);
 
-    // Kirim typing indicator
-    await ctx.sendChatAction('typing');
+    // Kirim pesan loading (dihapus setelah selesai)
+    const loader = await sendLoading(ctx);
 
     // 4. Cek cache lokal dulu
     const nomorNormalized = cache.normalizeKey(nomor);
     const cachedData = cache.getCachedNomor(nomorNormalized);
 
     if (cachedData) {
+      await clearLoading(loader, ctx);
       // Cache HIT → token (sesuai harga layanan) dialihkan dari user ke main admin + notifikasi
       const formatted = formatNomor(cachedData);
       ctx.reply(formatted, { parse_mode: 'HTML' });
@@ -194,6 +196,8 @@ function register(bot) {
         tokensRemaining: result.tokensRemaining,
       }).catch(() => {});
 
+      await clearLoading(loader, ctx);
+
       ctx.reply(formatError(result.error || 'Data nomor HP tidak ditemukan.'), {
         parse_mode: 'HTML',
       });
@@ -201,6 +205,7 @@ function register(bot) {
     }
 
     // 6. API sukses → kurangi token, simpan ke cache, kirim data
+    await clearLoading(loader, ctx);
     tokenManager.deductToken(userId, price);
 
     // Log ke grup (tanpa hasil pencarian)

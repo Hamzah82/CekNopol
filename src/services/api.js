@@ -8,6 +8,14 @@ let apiUrl = '';
 let apiKey = '';
 
 /**
+ * Batas waktu request ke provider (ms).
+ * Dibuat 60 detik: provider kadang lambat memproses query yang belum
+ * pernah di-cache di sisi mereka. Timeout terlalu cepat membuat kuota
+ * provider terpotong percuma karena request sebenarnya masih diproses.
+ */
+const REQUEST_TIMEOUT_MS = 60000;
+
+/**
  * Ambil sisa token provider dari response API.
  * Field standar: tokens_remaining (sama untuk semua layanan).
  *
@@ -45,7 +53,7 @@ async function cekNopol(platNormalized) {
         plat: platNormalized,
         key: apiKey,
       },
-      timeout: 15000,
+      timeout: REQUEST_TIMEOUT_MS,
     });
 
     const body = response.data;
@@ -78,7 +86,7 @@ async function cekNopol(platNormalized) {
     };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
-      return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
+      return { success: false, data: null, error: 'Server terlalu lama merespons (timeout 60 detik). Data mungkin masih diproses provider — jangan ulangi terlalu cepat.' };
     }
     if (err.response) {
       return { success: false, data: null, error: `Server mengembalikan error (${err.response.status}).` };
@@ -100,7 +108,7 @@ async function cekNama(nama) {
         nama: nama,
         key: apiKey,
       },
-      timeout: 15000,
+      timeout: REQUEST_TIMEOUT_MS,
     });
 
     const body = response.data;
@@ -134,7 +142,7 @@ async function cekNama(nama) {
     };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
-      return { success: false, data: null, total: 0, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
+      return { success: false, data: null, total: 0, error: 'Server terlalu lama merespons (timeout 60 detik). Data mungkin masih diproses provider — jangan ulangi terlalu cepat.' };
     }
     if (err.response) {
       return { success: false, data: null, total: 0, error: `Server mengembalikan error (${err.response.status}).` };
@@ -156,7 +164,7 @@ async function cekNik2kk(nik) {
         nik: nik,
         key: apiKey,
       },
-      timeout: 15000,
+      timeout: REQUEST_TIMEOUT_MS,
     });
 
     const body = response.data;
@@ -187,7 +195,7 @@ async function cekNik2kk(nik) {
     };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
-      return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
+      return { success: false, data: null, error: 'Server terlalu lama merespons (timeout 60 detik). Data mungkin masih diproses provider — jangan ulangi terlalu cepat.' };
     }
     if (err.response) {
       return { success: false, data: null, error: `Server mengembalikan error (${err.response.status}).` };
@@ -209,7 +217,7 @@ async function cekNomor(nomor) {
         nomor: nomor,
         key: apiKey,
       },
-      timeout: 15000,
+      timeout: REQUEST_TIMEOUT_MS,
     });
 
     const body = response.data;
@@ -240,7 +248,7 @@ async function cekNomor(nomor) {
     };
   } catch (err) {
     if (err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT') {
-      return { success: false, data: null, error: 'Gagal menghubungi server (timeout). Coba lagi nanti.' };
+      return { success: false, data: null, error: 'Server terlalu lama merespons (timeout 60 detik). Data mungkin masih diproses provider — jangan ulangi terlalu cepat.' };
     }
     if (err.response) {
       return { success: false, data: null, error: `Server mengembalikan error (${err.response.status}).` };

@@ -11,6 +11,7 @@ const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const cooldownService = require('../services/cooldownService');
+const { sendLoading, clearLoading } = require('../utils/loading');
 
 // Regex validasi NIK: 16 digit angka
 const NIK_REGEX = /^\d{16}$/;
@@ -138,13 +139,14 @@ function register(bot) {
     // Saldo cukup — tandai cooldown
     cooldownService.mark(userId);
 
-    // Kirim typing indicator
-    await ctx.sendChatAction('typing');
+    // Kirim pesan loading (dihapus setelah selesai)
+    const loader = await sendLoading(ctx);
 
     // 4. Cek cache lokal dulu
     const cachedData = cache.getCachedNik2kk(nik);
 
     if (cachedData) {
+      await clearLoading(loader, ctx);
       // Cache HIT → token (sesuai harga layanan) dialihkan dari user ke main admin + notifikasi
       const formatted = formatNik2kk(cachedData);
       ctx.reply(formatted, { parse_mode: 'HTML' });
@@ -193,6 +195,8 @@ function register(bot) {
         tokensRemaining: result.tokensRemaining,
       }).catch(() => {});
 
+      await clearLoading(loader, ctx);
+
       ctx.reply(formatError(result.error || 'Data NIK tidak ditemukan.'), {
         parse_mode: 'HTML',
       });
@@ -200,6 +204,7 @@ function register(bot) {
     }
 
     // 6. API sukses → kurangi token, simpan ke cache, kirim data
+    await clearLoading(loader, ctx);
     tokenManager.deductToken(userId, price);
 
     // Log ke grup (tanpa hasil pencarian)
