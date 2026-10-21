@@ -13,6 +13,7 @@ const tokenManager = require('../services/tokenManager');
 const orderService = require('../services/orderService');
 const affiliateService = require('../services/affiliateService');
 const userService = require('../services/userService');
+const channelGuard = require('../services/channelGuard');
 
 /** Prefix callback agar tidak bentrok dengan handler lain */
 const CB = 'menu:';
@@ -291,7 +292,49 @@ function register(bot) {
       console.error('[start] gagal memproses referral:', err.message);
     }
 
+    // ─── Wajib gabung channel informasi ────────────────────
+    //
+    // Pengecekan dilakukan SETELAH pencatatan user & referral, sehingga
+    // user tetap tercatat dan sistem affiliator tetap berjalan meski
+    // user belum bergabung.
+    //
+    // Bila pengecekan gagal (bot bukan admin channel / error), user
+    // diizinkan lewat (fail-open) agar tidak terkunci dari bot.
+    try {
+      const membership = await channelGuard.checkMembership(ctx.telegram, userId);
+
+      if (membership.ok && !membership.joined) {
+        await channelGuard.promptJoin(ctx);
+        return;
+      }
+    } catch (err) {
+      console.error('[start] gagal cek channel:', err.message);
+    }
+
     return sendMainMenu(ctx);
+  });
+
+  // ─── Tombol "Sudah Gabung, Cek Ulang" ────────────────────
+  bot.action('chk:recheck', async (ctx) => {
+    const userId = ctx.from.id;
+
+    try {
+      const membership = await channelGuard.checkMembership(ctx.telegram, userId);
+
+      if (membership.ok && !membership.joined) {
+        await ctx.answerCbQuery('Kamu belum bergabung ke channel.', { show_alert: true });
+        return;
+      }
+
+      await ctx.answerCbQuery('Berhasil! Selamat datang 🐢');
+
+      // Hapus pesan ajakan, lalu tampilkan menu
+      await ctx.deleteMessage().catch(() => {});
+      await sendMainMenu(ctx);
+    } catch (err) {
+      console.error('[start] gagal recheck channel:', err.message);
+      await ctx.answerCbQuery('Gagal mengecek. Coba lagi nanti.', { show_alert: true });
+    }
   });
 
   // ─── Callback tombol menu ────────────────────────────────
