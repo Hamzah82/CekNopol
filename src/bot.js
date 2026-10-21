@@ -20,6 +20,7 @@ const cekkkHandler = require('./handlers/cekkk');
 const affHandler = require('./handlers/aff');
 const backupHandler = require('./handlers/backup');
 const usersHandler = require('./handlers/users');
+const broadcastHandler = require('./handlers/broadcast');
 const apiService = require('./services/api');
 const cacheService = require('./services/cache');
 const tokenService = require('./services/tokenManager');
@@ -83,6 +84,7 @@ function createBot(config) {
   affHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
   backupHandler.initSetupAdmins(config.adminIds || [], dbPath);
   usersHandler.initSetupAdmins(config.adminIds || []);
+  broadcastHandler.initSetupAdmins(config.adminIds || []);
 
   // Register semua handlers
   startHandler.register(bot);
@@ -103,6 +105,7 @@ function createBot(config) {
   affHandler.register(bot);
   backupHandler.register(bot);
   usersHandler.register(bot);
+  broadcastHandler.register(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {
