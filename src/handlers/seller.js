@@ -113,20 +113,36 @@ function register(bot) {
 
       if (isS) {
         const s = sellerService.getSeller(userId);
+        const saved = sellerService.getWallet(userId);
+        const hargaAdmin = orderService.getPricePerToken();
+        const hargaSaya = orderService.getPricePerToken(undefined, s.profitPerToken || 0);
+
         lines.push(`Kamu terdaftar sebagai <b>seller</b>.`, ``);
+        lines.push(`<b>💰 Kondisi kamu</b>`);
+        lines.push(`Profit: <b>${rupiah(s.profitPerToken || 0)}</b> / token`);
+        lines.push(`Harga jual kamu: <b>${rupiah(hargaSaya)}</b> / token`);
+        lines.push(`Saldo: <b>${rupiah(s.balance || 0)}</b>`);
+        lines.push(``, `<b>🏦 Wallet penarikan</b>`);
+        if (saved) {
+          lines.push(`${sellerService.walletLabel(saved.wallet)} — <code>${saved.account}</code>`);
+        } else {
+          lines.push(`<i>Belum diatur</i> ⚠️`);
+        }
+        lines.push(``, `<b>📋 Command</b>`);
         lines.push(`<code>/seller link</code> — link referral`);
-        lines.push(`<code>/seller saldo</code> — saldo & statistik`);
+        lines.push(`<code>/seller saldo</code> — rincian saldo`);
         lines.push(`<code>/seller setprofit &lt;nominal&gt;</code> — atur profit/token`);
-        lines.push(`<code>/seller wd &lt;wallet&gt; &lt;nominal&gt; &lt;no&gt;</code> — cairkan`);
-        lines.push(``, `<b>Profit kamu sekarang:</b> ${rupiah(s.profitPerToken || 0)} / token`);
-        lines.push(``, `<i>Wallet: ${sellerService.WALLETS.map((w) => sellerService.walletLabel(w)).join(', ')}</i>`);
+        lines.push(`<code>/seller setwallet</code> — atur wallet tujuan`);
+        lines.push(`<code>/seller wd &lt;nominal&gt;</code> — cairkan saldo`);
+        lines.push(``, `<i>Harga user biasa: ${rupiah(hargaAdmin)} / token</i>`);
       } else if (isAdmin) {
         lines.push(`<b>Kelola Seller</b>`, ``);
-        lines.push(`<code>/seller add &lt;ID&gt;</code>`);
-        lines.push(`<code>/seller remove &lt;ID&gt;</code>`);
-        lines.push(`<code>/seller list</code>`);
-        lines.push(`<code>/seller wdlist</code>`);
+        lines.push(`<code>/seller add &lt;ID&gt;</code> — daftarkan seller`);
+        lines.push(`<code>/seller remove &lt;ID&gt;</code> — hapus seller`);
+        lines.push(`<code>/seller list</code> — daftar seller`);
+        lines.push(`<code>/seller wdlist</code> — penarikan menunggu`);
         lines.push(``, `<i>Hanya owner.</i>`);
+        lines.push(``, `<i>Seller mengatur profit &amp; wallet sendiri lewat</i> <code>/seller</code>`);
       } else {
         lines.push(`Kamu belum terdaftar sebagai seller.`);
         lines.push(``, `<i>Hubungi admin untuk mendaftar.</i>`);
