@@ -369,7 +369,6 @@ function getRevenue({ since } = {}) {
     omzet: 0,
     profit: 0,          // profit admin (bagian admin saja)
     sellerReward: 0,    // total bagian yang menjadi hak seller
-    netProfit: 0,       // profit bersih admin (= profit, karena seller terpisah)
     modal: 0,
     tokens: 0,
     diterima: 0,
@@ -398,7 +397,7 @@ function getRevenue({ since } = {}) {
   }
 
   // Profit admin TIDAK dipotong seller — seller punya bagiannya sendiri.
-  acc.netProfit = acc.profit;
+  // Catatan: tidak ada "profit bersih" terpisah karena tidak ada potongan.
   acc.modal = acc.omzet - acc.profit - acc.sellerReward;
   return acc;
 }

@@ -28,6 +28,12 @@ let setupAdminIds = [];
 /** @type {string} */
 let botUsername = '';
 
+/** Permintaan penarikan yang menunggu konfirmasi tombol: userId -> {amount, wallet, account, at} */
+const pendingWd = new Map();
+
+/** Wizard setwallet yang menunggu input nomor: userId -> {wallet, at} */
+const pendingWallet = new Map();
+
 /**
  * Inisialisasi
  * @param {number[]} ids
@@ -301,29 +307,28 @@ function register(bot) {
         return;
       }
 
-      const walletRaw = parts[1];
-      const nominalRaw = parts[2];
-      const account = parts.slice(3).join(' ');
-
-      if (!walletRaw || !nominalRaw || !account) {
+      // Wajib set wallet dulu
+      const saved = sellerService.getWallet(userId);
+      if (!saved) {
         ctx.reply(
           formatError(
-            `Format salah.\n\n<code>/seller wd &lt;wallet&gt; &lt;nominal&gt; &lt;no.wallet&gt;</code>\n\n` +
-              `Contoh:\n<code>/seller wd gopay 50000 08123456789</code>\n\n` +
-              `Wallet: ${sellerService.WALLETS.map((w) => sellerService.walletLabel(w)).join(', ')}`
+            'Kamu belum mengatur wallet tujuan penarikan.\n\n' +
+              'Atur dulu dengan: <code>/seller setwallet</code>'
           ),
           { parse_mode: 'HTML' }
         );
         return;
       }
 
-      const wallet = sellerService.normalizeWallet(walletRaw);
-      if (!wallet) {
+      // Format baru: /seller wd <nominal>
+      const nominalRaw = parts[1];
+      if (!nominalRaw) {
         ctx.reply(
           formatError(
-            `Wallet tidak didukung.\n\nTersedia: ${sellerService.WALLETS.map((w) =>
-              sellerService.walletLabel(w)
-            ).join(', ')}`
+            `Format salah.\n\n<code>/seller wd &lt;nominal&gt;</code>\n\n` +
+              `Contoh: <code>/seller wd 50000</code>\n\n` +
+              `Tujuan: ${sellerService.walletLabel(saved.wallet)} — <code>${saved.account}</code>\n` +
+              `<i>Ubah tujuan dengan</i> <code>/seller setwallet</code>`
           ),
           { parse_mode: 'HTML' }
         );
@@ -336,68 +341,94 @@ function register(bot) {
         return;
       }
 
-      const cd = cooldownService.check(userId);
-      if (cd.blocked) {
+      if (nominal < sellerService.MIN_WITHDRAW) {
         ctx.reply(
-          formatError(`Terlalu cepat. Tunggu <b>${cd.remaining} detik</b> lagi.`),
+          formatError(
+            `Minimum penarikan <b>${rupiah(sellerService.MIN_WITHDRAW)}</b>.\n\n` +
+              `Saldo kamu: <b>${rupiah(s.balance || 0)}</b>`
+          ),
           { parse_mode: 'HTML' }
         );
         return;
       }
 
-      const result = sellerService.createWithdrawal({
-        sellerId: userId,
-        wallet,
-        account,
-        amount: nominal,
-      });
-
-      if (!result.success) {
-        ctx.reply(formatError(result.error), { parse_mode: 'HTML' });
+      if ((s.balance || 0) < nominal) {
+        ctx.reply(
+          formatError(
+            `Saldo tidak mencukupi.\n\n` +
+              `Saldo kamu: <b>${rupiah(s.balance || 0)}</b>\n` +
+              `Diminta: <b>${rupiah(nominal)}</b>`
+          ),
+          { parse_mode: 'HTML' }
+        );
         return;
       }
 
-      cooldownService.mark(userId);
-      const wd = result.data;
-
-      const notif = [
-        `💸 <b>PENGAJUAN PENARIKAN SELLER</b>`,
-        `─────────────────────`,
-        ``,
-        `<b>ID:</b> <code>${wd.id}</code>`,
-        `<b>Seller:</b> <code>${wd.sellerId}</code>`,
-        `<b>Wallet:</b> ${sellerService.walletLabel(wd.wallet)}`,
-        `<b>No. Tujuan:</b> <code>${wd.account}</code>`,
-        `<b>Nominal:</b> <b>${rupiah(wd.amount)}</b>`,
-        ``,
-        `Sisa saldo seller: ${rupiah(result.balance)}`,
-        ``,
-        `─────────────────────`,
-        `Balas (reply) pesan ini dengan <code>/selesai</code> setelah transfer.`,
-      ].join('\n');
-
-      for (const adminId of setupAdminIds) {
-        try {
-          const sent = await bot.telegram.sendMessage(adminId, notif, { parse_mode: 'HTML' });
-          if (sent && sent.message_id) {
-            sellerService.attachAdminMessage(wd.id, { chatId: adminId, messageId: sent.message_id });
-          }
-        } catch (err) {
-          console.error(`[seller] gagal notif admin ${adminId}:`, err.message);
-        }
-      }
+      // Simpan permintaan sementara, minta konfirmasi lewat tombol
+      pendingWd.set(userId, {
+        amount: nominal,
+        wallet: saved.wallet,
+        account: saved.account,
+        at: Date.now(),
+      });
 
       ctx.reply(
-        formatSuccess(
-          `Pengajuan penarikan dikirim.\n\n` +
-            `<b>Nominal:</b> ${rupiah(wd.amount)}\n` +
-            `<b>Wallet:</b> ${sellerService.walletLabel(wd.wallet)}\n` +
-            `<b>Ke:</b> <code>${wd.account}</code>\n\n` +
-            `Sisa saldo: <b>${rupiah(result.balance)}</b>\n\n` +
-            `<i>Owner akan memproses penarikanmu.</i>`
-        ),
-        { parse_mode: 'HTML' }
+        [
+          `💸 <b>KONFIRMASI PENARIKAN</b>`,
+          `─────────────────────`,
+          ``,
+          `<b>Nominal:</b> ${rupiah(nominal)}`,
+          `<b>Wallet:</b> ${sellerService.walletLabel(saved.wallet)}`,
+          `<b>Ke:</b> <code>${saved.account}</code>`,
+          ``,
+          `Saldo setelah penarikan: <b>${rupiah((s.balance || 0) - nominal)}</b>`,
+          ``,
+          `─────────────────────`,
+          `Benar ingin menarik ke rekening ini?`,
+        ].join('\n'),
+        {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✅ Ya, Lanjutkan', callback_data: 'swd:ok' }],
+              [{ text: '❌ Batal', callback_data: 'swd:cancel' }],
+            ],
+          },
+        }
       );
+      return;
+    }
+
+    // ─── /seller setwallet (wizard) ─────────────────────────
+    if (sub === 'setwallet') {
+      const s = sellerService.getSeller(userId);
+      if (!s) {
+        ctx.reply(formatError('Kamu belum terdaftar sebagai seller.'), { parse_mode: 'HTML' });
+        return;
+      }
+
+      const current = sellerService.getWallet(userId);
+      const lines = [`🏦 <b>ATUR WALLET PENARIKAN</b>`, `─────────────────────`, ``];
+
+      if (current) {
+        lines.push(
+          `Wallet sekarang: <b>${sellerService.walletLabel(current.wallet)}</b>`,
+          `Nomor: <code>${current.account}</code>`,
+          ``
+        );
+      }
+
+      lines.push(`Silakan pilih jenis wallet kamu:`);
+
+      // Tombol pilihan wallet
+      const rows = sellerService.WALLETS.map((w) => [
+        { text: sellerService.walletLabel(w), callback_data: `swl:${w}` },
+      ]);
+
+      ctx.reply(lines.join('\n'), {
+        parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: rows },
+      });
       return;
     }
 
@@ -484,6 +515,198 @@ function register(bot) {
     ctx.reply(formatError('Subcommand tidak dikenal. Ketik <code>/seller</code> untuk bantuan.'), {
       parse_mode: 'HTML',
     });
+  });
+
+  // ─── Tombol pilih wallet (wizard setwallet) ──────────────
+  bot.action(/^swl:/, async (ctx) => {
+    const userId = ctx.from.id;
+    const data = (ctx.callbackQuery && ctx.callbackQuery.data) || '';
+    const walletKey = data.slice(4);
+
+    const seller = sellerService.getSeller(userId);
+    if (!seller) {
+      await ctx.answerCbQuery('Kamu bukan seller.', { show_alert: true });
+      return;
+    }
+
+    const wallet = sellerService.normalizeWallet(walletKey);
+    if (!wallet) {
+      await ctx.answerCbQuery('Wallet tidak dikenal.', { show_alert: true });
+      return;
+    }
+
+    // Simpan pilihan, tunggu user mengirim nomor
+    pendingWallet.set(userId, { wallet, at: Date.now() });
+
+    await ctx.answerCbQuery('Pilihan tersimpan');
+
+    const label = sellerService.walletLabel(wallet);
+    const contoh =
+      wallet === 'bank jago' ? 'contoh: <code>1234567890</code> (nomor rekening)' : 'contoh: <code>08123456789</code>';
+
+    try {
+      await ctx.editMessageText(
+        [
+          `🏦 <b>ATUR WALLET PENARIKAN</b>`,
+          `─────────────────────`,
+          ``,
+          `Wallet dipilih: <b>${label}</b>`,
+          ``,
+          `Sekarang kirim <b>nomor</b> wallet kamu ke chat ini.`,
+          `${contoh}`,
+          ``,
+          `<i>Ketik /batal untuk membatalkan.</i>`,
+        ].join('\n'),
+        { parse_mode: 'HTML' }
+      );
+    } catch (err) {
+      console.error('[seller] gagal edit pesan setwallet:', err.message);
+    }
+  });
+
+  // ─── Tombol konfirmasi penarikan ─────────────────────────
+  bot.action('swd:ok', async (ctx) => {
+    const userId = ctx.from.id;
+    const req = pendingWd.get(userId);
+
+    if (!req) {
+      await ctx.answerCbQuery('Permintaan sudah tidak berlaku. Ulangi /seller wd', { show_alert: true });
+      return;
+    }
+
+    pendingWd.delete(userId);
+
+    const result = sellerService.createWithdrawal({
+      sellerId: userId,
+      wallet: req.wallet,
+      account: req.account,
+      amount: req.amount,
+    });
+
+    if (!result.success) {
+      await ctx.answerCbQuery('Gagal', { show_alert: true });
+      await ctx.editMessageText(formatError(result.error), { parse_mode: 'HTML' }).catch(() => {});
+      return;
+    }
+
+    const wd = result.data;
+    await ctx.answerCbQuery('Penarikan diajukan');
+
+    try {
+      await ctx.editMessageText(
+        formatSuccess(
+          `<b>Pengajuan penarikan dikirim</b>\n\n` +
+            `<b>ID:</b> <code>${wd.id}</code>\n` +
+            `<b>Nominal:</b> ${rupiah(wd.amount)}\n` +
+            `<b>Wallet:</b> ${sellerService.walletLabel(wd.wallet)}\n` +
+            `<b>Ke:</b> <code>${wd.account}</code>\n\n` +
+            `Sisa saldo: <b>${rupiah(result.balance)}</b>\n\n` +
+            `<i>Owner akan memproses penarikanmu.</i>`
+        ),
+        { parse_mode: 'HTML' }
+      );
+    } catch (err) {
+      console.error('[seller] gagal edit konfirmasi wd:', err.message);
+    }
+
+    // Notifikasi ke owner
+    const notif = [
+      `💸 <b>PENGAJUAN PENARIKAN SELLER</b>`,
+      `─────────────────────`,
+      ``,
+      `<b>ID:</b> <code>${wd.id}</code>`,
+      `<b>Seller:</b> <code>${wd.sellerId}</code>`,
+      `<b>Wallet:</b> ${sellerService.walletLabel(wd.wallet)}`,
+      `<b>No. Tujuan:</b> <code>${wd.account}</code>`,
+      `<b>Nominal:</b> <b>${rupiah(wd.amount)}</b>`,
+      ``,
+      `Sisa saldo seller: ${rupiah(result.balance)}`,
+      ``,
+      `─────────────────────`,
+      `Balas (reply) pesan ini dengan <code>/selesai</code> setelah transfer.`,
+    ].join('\n');
+
+    for (const adminId of setupAdminIds) {
+      try {
+        const sent = await bot.telegram.sendMessage(adminId, notif, { parse_mode: 'HTML' });
+        if (sent && sent.message_id) {
+          sellerService.attachAdminMessage(wd.id, { chatId: adminId, messageId: sent.message_id });
+        }
+      } catch (err) {
+        console.error(`[seller] gagal notif admin ${adminId}:`, err.message);
+      }
+    }
+  });
+
+  // ─── Tombol batal penarikan ──────────────────────────────
+  bot.action('swd:cancel', async (ctx) => {
+    const userId = ctx.from.id;
+    pendingWd.delete(userId);
+
+    await ctx.answerCbQuery('Dibatalkan');
+    try {
+      await ctx.editMessageText('❌ <b>Penarikan dibatalkan.</b>\n\nSaldo kamu tidak berubah.', {
+        parse_mode: 'HTML',
+      });
+    } catch (err) {
+      console.error('[seller] gagal edit batal wd:', err.message);
+    }
+  });
+
+  // ─── /batal (batalkan wizard setwallet) ──────────────────
+  bot.command('batal', async (ctx) => {
+    const userId = ctx.from.id;
+    if (pendingWallet.delete(userId)) {
+      ctx.reply('❌ Pengaturan wallet dibatalkan.', { parse_mode: 'HTML' });
+    }
+  });
+
+  // ─── Tangkap input nomor wallet ──────────────────────────
+  // Didaftarkan SETELAH handler lain; hanya aktif bila user
+  // sedang dalam wizard setwallet.
+  bot.on('message', async (ctx, next) => {
+    const userId = ctx.from.id;
+    const state = pendingWallet.get(userId);
+    if (!state) return next();
+
+    const msg = ctx.message;
+    if (!msg || !msg.text) return next();
+    if (msg.entities && msg.entities.some((e) => e.type === 'bot_command')) return next();
+
+    const account = msg.text.trim();
+    if (!account) return next();
+
+    // Validasi ringan: hanya angka, spasi, tanda hubung, plus
+    if (!/^[0-9+\-\s]{6,25}$/.test(account)) {
+      ctx.reply(
+        formatError(
+          'Nomor tidak valid.\n\nKirim hanya angka, contoh:\n' +
+            '<code>08123456789</code>\n\n' +
+            '<i>Ketik /batal untuk membatalkan.</i>'
+        ),
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    pendingWallet.delete(userId);
+
+    const result = sellerService.setWallet(userId, state.wallet, account);
+    if (!result.success) {
+      ctx.reply(formatError(result.error), { parse_mode: 'HTML' });
+      return;
+    }
+
+    ctx.reply(
+      formatSuccess(
+        `<b>Wallet berhasil disimpan</b>\n\n` +
+          `<b>Wallet:</b> ${sellerService.walletLabel(state.wallet)}\n` +
+          `<b>Nomor:</b> <code>${account}</code>\n\n` +
+          `Sekarang kamu bisa menarik saldo dengan:\n` +
+          `<code>/seller wd &lt;nominal&gt;</code>`
+      ),
+      { parse_mode: 'HTML' }
+    );
   });
 
   // ─── /selesai (reply notifikasi penarikan seller) ────────

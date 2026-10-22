@@ -10,6 +10,7 @@
 
 const statsService = require('../services/statsService');
 const orderService = require('../services/orderService');
+const sellerService = require('../services/sellerService');
 const { formatError } = require('../utils/format');
 
 /** @type {number[]} */
@@ -155,25 +156,44 @@ function buildStats() {
     lines.push(`Omzet: <b>${rupiah(revToday.omzet)}</b>`);
     lines.push(`Profit admin: ${rupiah(revToday.profit)}`);
     lines.push(`Bagian seller: ${rupiah(revToday.sellerReward)}`);
-    lines.push(`Profit bersih: <b>${rupiah(revToday.netProfit)}</b>`);
     lines.push(`Order: ${revToday.diterima} diterima`);
 
     lines.push(``, `<b>30 hari</b>`);
     lines.push(`Omzet: <b>${rupiah(revMonth.omzet)}</b>`);
     lines.push(`Profit admin: ${rupiah(revMonth.profit)}`);
     lines.push(`Bagian seller: ${rupiah(revMonth.sellerReward)}`);
-    lines.push(`Profit bersih: <b>${rupiah(revMonth.netProfit)}</b>`);
     lines.push(`Order: ${revMonth.diterima} diterima`);
 
     lines.push(``, `<b>Total</b>`);
     lines.push(`Omzet: <b>${rupiah(revAll.omzet)}</b>`);
     lines.push(`Profit admin: ${rupiah(revAll.profit)}`);
     lines.push(`Bagian seller: ${rupiah(revAll.sellerReward)}`);
-    lines.push(`Profit bersih: <b>${rupiah(revAll.netProfit)}</b>`);
     lines.push(`Modal: ${rupiah(revAll.modal)}`);
     lines.push(`Token terjual: <b>${revAll.tokens}</b>`);
     lines.push(``, `<b>Status order</b>`);
     lines.push(`Diterima: ${revAll.diterima} | Ditolak: ${revAll.ditolak} | Pending: ${revAll.pending}`);
+
+    // ─── Kewajiban ke seller ───────────────────────────────
+    // Angka ini dihitung dari SALDO yang masih dipegang seller,
+    // bukan dari selisih order, karena saldo seller bisa berasal
+    // dari sumber lain (mis. penyesuaian manual).
+    const sellers = sellerService.getAllSellers();
+    const saldoSeller = sellers.reduce((a, s) => a + (Number(s.balance) || 0), 0);
+
+    const wds = Object.values(sellerService.readWithdrawals());
+    const menunggu = wds
+      .filter((w) => w.status === 'menunggu')
+      .reduce((a, w) => a + (Number(w.amount) || 0), 0);
+    const sudahDibayar = wds
+      .filter((w) => w.status === 'selesai')
+      .reduce((a, w) => a + (Number(w.amount) || 0), 0);
+
+    lines.push(``, `<b>🏪 KEWAJIBAN KE SELLER</b>`);
+    lines.push(`Total bagian seller: ${rupiah(revAll.sellerReward)}`);
+    lines.push(`Sudah dicairkan: ${rupiah(sudahDibayar)}`);
+    if (menunggu > 0) lines.push(`Menunggu diproses: ${rupiah(menunggu)}`);
+    lines.push(`<b>Saldo seller belum dicairkan: ${rupiah(saldoSeller)}</b>`);
+    lines.push(`<i>Uang ini ada di tangan kamu, bukan milik kamu.</i>`);
   }
 
   // Harga & profit saat ini (bukan akumulatif)

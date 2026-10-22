@@ -125,6 +125,9 @@ function addSeller({ userId, addedBy }) {
     profitPerToken: 0,
     balance: 0,
     totalEarned: 0,
+    // Wallet tersimpan agar tidak perlu diisi ulang saat penarikan
+    wallet: null,
+    account: null,
     addedAt: new Date().toISOString(),
     addedBy: Number(addedBy) || null,
   };
@@ -347,6 +350,47 @@ function attachAdminMessage(wdId, msg) {
   writeJson('sellerwds.json', list);
 }
 
+
+/**
+ * Simpan wallet seller (agar tidak perlu diisi ulang saat penarikan)
+ *
+ * @param {number|string} userId
+ * @param {string} wallet - nama wallet baku
+ * @param {string} account - nomor HP / nomor rekening
+ * @returns {{success: boolean, error?: string, data?: object}}
+ */
+function setWallet(userId, wallet, account) {
+  const all = readJson('sellers.json', {});
+  const key = String(userId);
+  const seller = all[key];
+
+  if (!seller) return { success: false, error: 'Bukan seller.' };
+
+  const w = normalizeWallet(wallet);
+  if (!w) return { success: false, error: 'Jenis wallet tidak dikenal.' };
+
+  const acc = String(account || '').trim();
+  if (!acc) return { success: false, error: 'Nomor wallet tidak boleh kosong.' };
+
+  seller.wallet = w;
+  seller.account = acc;
+  all[key] = seller;
+  writeJson('sellers.json', all);
+
+  return { success: true, data: seller };
+}
+
+/**
+ * Ambil wallet seller
+ * @param {number|string} userId
+ * @returns {{wallet: string, account: string}|null}
+ */
+function getWallet(userId) {
+  const seller = getSeller(userId);
+  if (!seller || !seller.wallet || !seller.account) return null;
+  return { wallet: seller.wallet, account: seller.account };
+}
+
 module.exports = {
   WALLETS,
   WALLET_LABELS,
@@ -361,6 +405,8 @@ module.exports = {
   addSeller,
   removeSeller,
   setProfitPerToken,
+  setWallet,
+  getWallet,
   addBalance,
   deductBalance,
   // Referral
