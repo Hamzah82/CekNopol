@@ -134,7 +134,7 @@ function register(bot) {
         lines.push(`<code>/seller setprofit &lt;nominal&gt;</code> — atur profit/token`);
         lines.push(`<code>/seller setwallet</code> — atur wallet tujuan`);
         lines.push(`<code>/seller wd &lt;nominal&gt;</code> — cairkan saldo`);
-        lines.push(``, `<i>Harga user biasa: ${rupiah(hargaAdmin)} / token</i>`);
+        lines.push(``, `<i>Harga dasar: ${rupiah(hargaAdmin)} / token</i>`);
       } else if (isAdmin) {
         lines.push(`<b>Kelola Seller</b>`, ``);
         lines.push(`<code>/seller add &lt;ID&gt;</code> — daftarkan seller`);
@@ -182,8 +182,8 @@ function register(bot) {
           `akan terhubung ke kamu secara permanen.`,
           ``,
           `💰 Profit kamu: <b>${rupiah(s.profitPerToken || 0)}</b> / token`,
-          `🏷️ Harga untuk user kamu: <b>${rupiah(hargaSeller)}</b> / token`,
-          `🏷️ Harga user biasa: ${rupiah(hargaAdmin)} / token`,
+          `🏷️ Harga jual kamu: <b>${rupiah(hargaSeller)}</b> / token`,
+          `🏷️ Harga dasar: ${rupiah(hargaAdmin)} / token`,
           `💳 Saldo: <b>${rupiah(s.balance || 0)}</b>`,
         ].join('\n'),
         { parse_mode: 'HTML' }
@@ -211,8 +211,8 @@ function register(bot) {
         `Total pendapatan: <b>${rupiah(s.totalEarned || 0)}</b>`,
         `Profit per token: <b>${rupiah(s.profitPerToken || 0)}</b>`,
         ``,
-        `Harga user kamu: <b>${rupiah(hargaSeller)}</b> / token`,
-        `Harga user biasa: ${rupiah(hargaAdmin)} / token`,
+        `Harga jual kamu: <b>${rupiah(hargaSeller)}</b> / token`,
+        `Harga dasar: ${rupiah(hargaAdmin)} / token`,
         ``,
         `Minimum penarikan: <b>${rupiah(sellerService.MIN_WITHDRAW)}</b>`,
       ];
@@ -247,9 +247,9 @@ function register(bot) {
             `⚙️ <b>PROFIT SELLER</b>`,
             ``,
             `Profit kamu: <b>${rupiah(s.profitPerToken || 0)}</b> / token`,
-            `Harga user kamu: <b>${rupiah(hargaSeller)}</b> / token`,
+            `Harga jual kamu: <b>${rupiah(hargaSeller)}</b> / token`,
             ``,
-            `Harga dasar dari admin: ${rupiah(hargaAdmin)} / token`,
+            `Harga dasar: ${rupiah(hargaAdmin)} / token`,
             `<i>Profit kamu ditambahkan di atas harga admin.</i>`,
             ``,
             `Gunakan: <code>/seller setprofit &lt;nominal&gt;</code>`,
@@ -278,7 +278,7 @@ function register(bot) {
         formatSuccess(
           `<b>Profit seller diperbarui</b>\n\n` +
             `Profit kamu: <b>${rupiah(result.data.profitPerToken)}</b> / token\n` +
-            `Harga untuk user kamu: <b>${rupiah(hargaBaru)}</b> / token\n\n` +
+            `Harga jual kamu: <b>${rupiah(hargaBaru)}</b> / token\n\n` +
             `<i>Berlaku untuk order berikutnya. Profit admin tidak terpengaruh.</i>`
         ),
         { parse_mode: 'HTML' }
@@ -514,14 +514,14 @@ function register(bot) {
           const hargaSeller = orderService.getPricePerToken(undefined, s.profitPerToken || 0);
           lines.push(`<b>${i + 1}. <code>${s.userId}</code></b>`);
           lines.push(`   Profit: ${rupiah(s.profitPerToken || 0)} / token`);
-          lines.push(`   Harga user: ${rupiah(hargaSeller)} / token`);
+          lines.push(`   Harga jual: ${rupiah(hargaSeller)} / token`);
           lines.push(`   Saldo: ${rupiah(s.balance || 0)}`);
           lines.push('');
         });
 
         lines.push(`─────────────────────`);
         lines.push(`Total: <b>${all.length}</b> seller`);
-        lines.push(`<i>Harga dasar admin: ${rupiah(hargaAdmin)} / token</i>`);
+        lines.push(`<i>Harga dasar: ${rupiah(hargaAdmin)} / token</i>`);
 
         ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
         return;
