@@ -17,7 +17,7 @@ const setlogHandler = require('./handlers/setlog');
 const statsHandler = require('./handlers/stats');
 const cleardepoHandler = require('./handlers/cleardepo');
 const cekkkHandler = require('./handlers/cekkk');
-const affHandler = require('./handlers/aff');
+const sellerHandler = require('./handlers/seller');
 const backupHandler = require('./handlers/backup');
 const usersHandler = require('./handlers/users');
 const broadcastHandler = require('./handlers/broadcast');
@@ -30,7 +30,7 @@ const orderService = require('./services/orderService');
 const priceService = require('./services/priceService');
 const logService = require('./services/logService');
 const statsService = require('./services/statsService');
-const affiliateService = require('./services/affiliateService');
+const sellerService = require('./services/sellerService');
 const userService = require('./services/userService');
 
 /**
@@ -56,7 +56,7 @@ function createBot(config) {
   priceService.setDbPath(dbPath);
   logService.setDbPath(dbPath);
   statsService.setDbPath(dbPath);
-  affiliateService.setDbPath(dbPath);
+  sellerService.setDbPath(dbPath);
   userService.setDbPath(dbPath);
 
   // Inisialisasi API service
@@ -81,7 +81,7 @@ function createBot(config) {
   statsHandler.initSetupAdmins(config.adminIds || []);
   cleardepoHandler.initSetupAdmins(config.adminIds || []);
   cekkkHandler.initSetupAdmins(config.adminIds || []);
-  affHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
+  sellerHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
   backupHandler.initSetupAdmins(config.adminIds || [], dbPath);
   usersHandler.initSetupAdmins(config.adminIds || []);
   broadcastHandler.initSetupAdmins(config.adminIds || []);
@@ -102,7 +102,7 @@ function createBot(config) {
   statsHandler.register(bot);
   cleardepoHandler.register(bot);
   cekkkHandler.register(bot);
-  affHandler.register(bot);
+  sellerHandler.register(bot);
   backupHandler.register(bot);
   usersHandler.register(bot);
   broadcastHandler.register(bot);

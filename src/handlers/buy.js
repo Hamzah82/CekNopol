@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 const orderService = require('../services/orderService');
-const affiliateService = require('../services/affiliateService');
+const sellerService = require('../services/sellerService');
 const tokenManager = require('../services/tokenManager');
 const { formatError } = require('../utils/format');
 
@@ -75,13 +75,13 @@ function formatOrderDetail(order) {
   if (order.username) lines.push(`<b>Username:</b> @${order.username}`);
   if (order.fullName) lines.push(`<b>Nama:</b> ${escapeHtml(order.fullName)}`);
 
-  // Info affiliator (bila user direferensikan)
-  const refId = affiliateService.getReferrer(order.userId);
-  if (refId) {
-    const aff = affiliateService.getAffiliator(refId);
-    lines.push(
-      `<b>Affiliator:</b> <code>${refId}</code>${aff && aff.username ? ` (@${aff.username})` : ''}`
-    );
+  // Info seller (bila user direferensikan seller)
+  const sellerRefId = order.sellerId || sellerService.getReferrer(order.userId);
+  if (sellerRefId) {
+    lines.push(`<b>Seller:</b> <code>${sellerRefId}</code>`);
+    if (order.sellerProfitPerToken) {
+      lines.push(`<b>Profit seller:</b> ${rupiah(order.sellerProfitPerToken)} / token`);
+    }
   }
 
   lines.push(``, `─────────────────────`, ``);
@@ -197,11 +197,17 @@ function register(bot) {
       return;
     }
 
+    // Profit seller hanya berlaku untuk user yang diundang seller
+    const sellerId = sellerService.getReferrer(userId);
+    const sellerProfit = sellerId ? sellerService.getProfitForUser(userId) : 0;
+
     const order = orderService.createOrder({
       userId,
       username: ctx.from.username || '',
       fullName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' '),
       amount,
+      sellerProfit,
+      sellerId,
     });
 
     const caption =
@@ -344,13 +350,6 @@ function register(bot) {
     const newProfit = orderService.setProfit(nominal);
     const hargaBaru = orderService.getPricePerToken();
 
-    // Turunkan profit affiliator yang melebihi profit admin baru
-    let clamped = [];
-    try {
-      clamped = affiliateService.clampToAdminProfit(newProfit);
-    } catch (err) {
-      console.error('[buy] gagal menyesuaikan profit affiliator:', err.message);
-    }
     ctx.reply(
       `✅ <b>Profit berhasil diatur</b>\n\n` +
         `Profit: <b>${rupiah(newProfit)}</b> / token\n` +
@@ -358,16 +357,8 @@ function register(bot) {
           hargaBaru
         )}</b> / token\n\n` +
         `<i>Contoh: beli 5 token → 5 × ${rupiah(hargaBaru)} = ${rupiah(5 * hargaBaru)}</i>\n\n` +
-        `<i>Berlaku untuk order berikutnya. Order yang sudah dibuat tetap pakai harga lama.</i>` +
-        (clamped.length
-          ? `\n\n⚠️ <b>Profit affiliator disesuaikan otomatis:</b>\n` +
-            clamped
-              .map(
-                (c) =>
-                  `• <code>${c.userId}</code>: ${rupiah(c.from)} → <b>${rupiah(c.to)}</b> / token`
-              )
-              .join('\n')
-          : ''),
+        `<i>Berlaku untuk order berikutnya. Order yang sudah dibuat tetap pakai harga lama.</i>\n\n` +
+        `<i>Profit seller TIDAK terpengaruh — seller menambahkan profitnya sendiri di atas harga ini.</i>`,
       { parse_mode: 'HTML' }
     );
   });
@@ -436,23 +427,23 @@ async function handleVerification(ctx, action) {
     const newBalance = tokenManager.addToken(target.userId, target.amount);
     orderService.setStatus(target.id, 'diterima');
 
-    // ─── Bagikan profit affiliator (jika user direferensikan) ───
-    let affReward = null;
+    // ─── Bagikan bagian seller (jika user diundang seller) ───
+    let sellerReward = null;
     try {
-      affReward = require('./aff').rewardAffiliate({
+      sellerReward = require('./seller').rewardSeller({
         userId: target.userId,
         amount: target.amount,
-        adminProfitPerToken: target.profit,
+        sellerProfitPerToken: target.sellerProfitPerToken,
       });
-      if (affReward && affReward.affiliatorId) {
-        orderService.setAffiliateReward(target.id, {
-          affiliateId: affReward.affiliatorId,
-          reward: affReward.earned,
-          profitPerToken: affReward.profitPerToken,
+      if (sellerReward && sellerReward.sellerId && sellerReward.earned > 0) {
+        orderService.setSellerReward(target.id, {
+          sellerId: sellerReward.sellerId,
+          reward: sellerReward.earned,
+          profitPerToken: sellerReward.profitPerToken,
         });
       }
     } catch (err) {
-      console.error('[buy] gagal hitung reward affiliator:', err.message);
+      console.error('[buy] gagal hitung reward seller:', err.message);
     }
 
     ctx.reply(
@@ -462,8 +453,8 @@ async function handleVerification(ctx, action) {
         `<b>Token ditransfer:</b> ${target.amount}\n` +
         `<b>Total dibayar:</b> ${rupiah(target.total)}\n` +
         `<b>Saldo user sekarang:</b> ${newBalance} token\n\n` +
-        (affReward && affReward.affiliatorId
-          ? `\n🤝 <b>Affiliator:</b> <code>${affReward.affiliatorId}</code> — ${rupiah(affReward.earned)}\n`
+        (sellerReward && sellerReward.sellerId
+          ? `\n🏪 <b>Seller:</b> <code>${sellerReward.sellerId}</code> — ${rupiah(sellerReward.earned)}\n`
           : '') +
         `─────────────────────\n` +
         `<b>Saldo kamu (admin):</b> ${adminBalanceBefore} → <b>${adminBalanceAfter}</b> token` +
@@ -483,22 +474,22 @@ async function handleVerification(ctx, action) {
           `Terima kasih sudah berbelanja! 🐢`,
         { parse_mode: 'HTML' }
       );
-      // Notifikasi ke affiliator (bila ada)
-      if (affReward && affReward.affiliatorId && affReward.earned > 0) {
+      // Notifikasi ke seller (bila ada)
+      if (sellerReward && sellerReward.sellerId && sellerReward.earned > 0) {
         try {
-          const affData = affiliateService.getAffiliator(affReward.affiliatorId);
+          const sellerData = sellerService.getSeller(sellerReward.sellerId);
           await ctx.telegram.sendMessage(
-            affReward.affiliatorId,
-            `🤝 <b>Komisi Affiliator</b>\n\n` +
+            sellerReward.sellerId,
+            `🏪 <b>Penjualan Token</b>\n\n` +
               `<b>Order ID:</b> <code>${target.id}</code>\n` +
-              `<b>Token dibeli:</b> ${target.amount}\n` +
-              `<b>Komisi kamu:</b> <b>${rupiah(affReward.earned)}</b>\n` +
-              `<b>Saldo sekarang:</b> ${rupiah((affData && affData.balance) || 0)}\n\n` +
-              `<i>Cek saldo: <code>/aff saldo</code></i>`,
+              `<b>Token terjual:</b> ${target.amount}\n` +
+              `<b>Bagian kamu:</b> <b>${rupiah(sellerReward.earned)}</b>\n` +
+              `<b>Saldo sekarang:</b> ${rupiah((sellerData && sellerData.balance) || 0)}\n\n` +
+              `<i>Cek saldo: <code>/seller saldo</code></i>`,
             { parse_mode: 'HTML' }
           );
         } catch (err) {
-          console.error(`[buy] gagal notifikasi affiliator ${affReward.affiliatorId}:`, err.message);
+          console.error(`[buy] gagal notifikasi seller ${sellerReward.sellerId}:`, err.message);
         }
       }
     } catch (err) {

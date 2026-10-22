@@ -22,9 +22,9 @@
  *   adminChatId: number|null, // chat_id admin penerima bukti
  *   adminMessageId: number|null, // message_id pesan bukti di chat admin
  *   reason: string|null,   // alasan penolakan
- *   affiliateId: number|null,      // affiliator user (jika ada)
- *   affiliateReward: number,       // total komisi yang dibayarkan ke affiliator (rupiah)
- *   affiliateProfitPerToken: number, // komisi per token saat order diproses
+ *   sellerId: number|null,         // seller yang mereferensikan user
+ *   sellerReward: number,          // total bagian seller (rupiah)
+ *   sellerProfitPerToken: number,  // profit seller per token
  * }
  */
 
@@ -123,32 +123,39 @@ function getQrisPath() {
 }
 
 /**
- * Hitung harga per token (dasar + profit admin)
- * @param {number} [profit] - Profit (default: ambil dari settings)
- * @returns {number} Harga per token, mis. 2000 + 100 = 2100
+ * Hitung harga per token (dasar + profit admin + profit seller)
+ *
+ * @param {number} [profit] - Profit admin (default: dari settings)
+ * @param {number} [sellerProfit] - Profit seller (default 0)
+ * @returns {number} Harga per token, mis. 2000 + 500 + 500 = 3000
  */
-function getPricePerToken(profit) {
+function getPricePerToken(profit, sellerProfit) {
   const prof = profit === undefined ? getProfit() : Math.max(0, Math.floor(Number(profit) || 0));
-  return BASE_PRICE_PER_TOKEN + prof;
+  const sp = Math.max(0, Math.floor(Number(sellerProfit) || 0));
+  return BASE_PRICE_PER_TOKEN + prof + sp;
 }
 
 /**
  * Hitung total harga pembelian
- * harga per token = harga dasar + profit
+ *
+ * harga per token = modal + profit admin + profit seller
  * total = jumlah token x harga per token
  *
- * Contoh: /setprofit 100 → harga/token 2100
- *         beli 5 token → 5 x 2100 = 10500
+ * Contoh: modal 2000, profit admin 500, profit seller 500
+ *         -> harga/token 3000
+ *         -> beli 5 token = 15000
  *
  * @param {number} amount - Jumlah token
- * @param {number} [profit] - Profit (default: ambil dari settings)
- * @returns {{pricePerToken: number, profit: number, total: number}}
+ * @param {number} [profit] - Profit admin (default: dari settings)
+ * @param {number} [sellerProfit] - Profit seller (default 0)
+ * @returns {{pricePerToken: number, profit: number, sellerProfit: number, total: number}}
  */
-function calculatePrice(amount, profit) {
+function calculatePrice(amount, profit, sellerProfit) {
   const prof = profit === undefined ? getProfit() : Math.max(0, Math.floor(Number(profit) || 0));
-  const pricePerToken = BASE_PRICE_PER_TOKEN + prof;
+  const sp = Math.max(0, Math.floor(Number(sellerProfit) || 0));
+  const pricePerToken = BASE_PRICE_PER_TOKEN + prof + sp;
   const total = amount * pricePerToken;
-  return { pricePerToken, profit: prof, total };
+  return { pricePerToken, profit: prof, sellerProfit: sp, total };
 }
 
 /**
@@ -190,12 +197,14 @@ function writeOrders(data) {
  * @param {string} [params.username]
  * @param {string} [params.fullName]
  * @param {number} params.amount - Jumlah token
+ * @param {number} [params.sellerProfit] - Profit seller untuk user ini (default 0)
+ * @param {number|null} [params.sellerId] - ID seller yang mereferensikan user
  * @returns {object} Order yang dibuat
  */
-function createOrder({ userId, username, fullName, amount }) {
+function createOrder({ userId, username, fullName, amount, sellerProfit, sellerId }) {
   const orders = readOrders();
   const now = new Date().toISOString();
-  const price = calculatePrice(amount);
+  const price = calculatePrice(amount, undefined, sellerProfit);
 
   const id = `ORD-${Date.now()}`;
   const order = {
@@ -214,9 +223,10 @@ function createOrder({ userId, username, fullName, amount }) {
     adminChatId: null,
     adminMessageId: null,
     reason: null,
-    affiliateId: null,
-    affiliateReward: 0,
-    affiliateProfitPerToken: 0,
+    // ─── Seller (pengganti affiliator) ───
+    sellerId: sellerId ? Number(sellerId) : null,
+    sellerProfitPerToken: price.sellerProfit,
+    sellerReward: 0,
   };
 
   orders[id] = order;
@@ -357,9 +367,9 @@ function getRevenue({ since } = {}) {
 
   const acc = {
     omzet: 0,
-    profit: 0,          // profit kotor (sebelum komisi affiliator)
-    affiliateReward: 0, // total komisi yang dibayarkan ke affiliator
-    netProfit: 0,       // profit bersih milik admin utama
+    profit: 0,          // profit admin (bagian admin saja)
+    sellerReward: 0,    // total bagian yang menjadi hak seller
+    netProfit: 0,       // profit bersih admin (= profit, karena seller terpisah)
     modal: 0,
     tokens: 0,
     diterima: 0,
@@ -383,13 +393,13 @@ function getRevenue({ since } = {}) {
 
     acc.omzet += Number(o.total) || 0;
     acc.profit += Number(o.profit) * (Number(o.amount) || 0);
-    acc.affiliateReward += Number(o.affiliateReward) || 0;
+    acc.sellerReward += Number(o.sellerReward) || 0;
     acc.tokens += Number(o.amount) || 0;
   }
 
-  // Profit bersih = profit kotor - komisi affiliator
-  acc.netProfit = acc.profit - acc.affiliateReward;
-  acc.modal = acc.omzet - acc.profit;
+  // Profit admin TIDAK dipotong seller — seller punya bagiannya sendiri.
+  acc.netProfit = acc.profit;
+  acc.modal = acc.omzet - acc.profit - acc.sellerReward;
   return acc;
 }
 
@@ -438,24 +448,24 @@ function countRejectedOrders() {
 
 
 /**
- * Catat komisi affiliator pada order.
- * Dipanggil saat /terima agar profit bersih bisa dihitung ulang nanti.
+ * Catat bagian seller pada order.
+ * Dipanggil saat /terima agar laporan laba bisa dihitung ulang nanti.
  *
  * @param {string} orderId
  * @param {object} params
- * @param {number} params.affiliateId
- * @param {number} params.reward - total komisi (rupiah)
- * @param {number} params.profitPerToken - komisi per token
+ * @param {number} params.sellerId
+ * @param {number} params.reward - total bagian seller (rupiah)
+ * @param {number} params.profitPerToken - profit seller per token
  * @returns {object|null}
  */
-function setAffiliateReward(orderId, { affiliateId, reward, profitPerToken }) {
+function setSellerReward(orderId, { sellerId, reward, profitPerToken }) {
   const orders = readOrders();
   const order = orders[orderId];
   if (!order) return null;
 
-  order.affiliateId = Number(affiliateId) || null;
-  order.affiliateReward = Math.max(0, Math.floor(Number(reward) || 0));
-  order.affiliateProfitPerToken = Math.max(0, Math.floor(Number(profitPerToken) || 0));
+  order.sellerId = Number(sellerId) || null;
+  order.sellerReward = Math.max(0, Math.floor(Number(reward) || 0));
+  order.sellerProfitPerToken = Math.max(0, Math.floor(Number(profitPerToken) || 0));
 
   orders[orderId] = order;
   writeOrders(orders);
@@ -480,7 +490,7 @@ module.exports = {
   cancelOrder,
   readSettings,
   getRevenue,
-  setAffiliateReward,
+  setSellerReward,
   clearRejectedOrders,
   countRejectedOrders,
 };

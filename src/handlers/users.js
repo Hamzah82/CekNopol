@@ -11,7 +11,7 @@
  */
 
 const userService = require('../services/userService');
-const affiliateService = require('../services/affiliateService');
+const sellerService = require('../services/sellerService');
 const roleManager = require('../services/roleManager');
 const { formatError } = require('../utils/format');
 
@@ -86,7 +86,7 @@ function buildUserList({ page = 1, keyword = '' } = {}) {
     const lower = kw.toLowerCase();
     users = users.filter((u) => {
       if (u.userId.includes(lower)) return true;
-      const ref = affiliateService.getReferrer(u.userId);
+      const ref = sellerService.getReferrer(u.userId);
       return ref !== null && String(ref).includes(lower);
     });
   }
@@ -108,7 +108,7 @@ function buildUserList({ page = 1, keyword = '' } = {}) {
   const items = users.slice(start, start + PER_PAGE);
 
   // Statistik singkat
-  const denganAff = users.filter((u) => affiliateService.getReferrer(u.userId) !== null).length;
+  const denganAff = users.filter((u) => sellerService.getReferrer(u.userId) !== null).length;
 
   const lines = [
     kw ? `🔍 <b>HASIL PENCARIAN "${escapeHtml(kw)}"</b>` : `👥 <b>DAFTAR USER</b>`,
@@ -118,16 +118,16 @@ function buildUserList({ page = 1, keyword = '' } = {}) {
 
   items.forEach((u, i) => {
     const num = start + i + 1;
-    const ref = affiliateService.getReferrer(u.userId);
+    const ref = sellerService.getReferrer(u.userId);
 
     lines.push(`<b>${num}.</b> <code>${u.userId}</code>`);
 
     if (ref !== null) {
-      const aff = affiliateService.getAffiliator(ref);
+      const aff = sellerService.getSeller(ref);
       const nama = aff && aff.username ? ` (@${aff.username})` : '';
-      lines.push(`   🤝 Diundang: <code>${ref}</code>${nama}`);
+      lines.push(`   🤝 Seller: <code>${ref}</code>${nama}`);
     } else {
-      lines.push(`   🤝 Diundang: <i>-</i>`);
+      lines.push(`   🤝 Seller: <i>-</i>`);
     }
 
     lines.push(`   📅 Sejak: ${shortDate(u.firstSeen)}`);
@@ -136,7 +136,7 @@ function buildUserList({ page = 1, keyword = '' } = {}) {
 
   lines.push(`─────────────────────`);
   lines.push(`📄 Halaman <b>${p}</b> / <b>${totalPages}</b>`);
-  lines.push(`👥 Total: <b>${total}</b> user | Diundang affiliator: <b>${denganAff}</b>`);
+  lines.push(`👥 Total: <b>${total}</b> user | Dari seller: <b>${denganAff}</b>`);
 
   if (p < totalPages) {
     lines.push(``, `➡️ Lanjut: <code>/users ${p + 1}</code>`);

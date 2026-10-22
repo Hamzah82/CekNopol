@@ -11,7 +11,7 @@ const roleManager = require('../services/roleManager');
 const priceService = require('../services/priceService');
 const tokenManager = require('../services/tokenManager');
 const orderService = require('../services/orderService');
-const affiliateService = require('../services/affiliateService');
+const sellerService = require('../services/sellerService');
 const userService = require('../services/userService');
 const channelGuard = require('../services/channelGuard');
 
@@ -272,7 +272,8 @@ function register(bot) {
     // user lama yang tokennya habis juga bersaldo 0.
     try {
       const payload = ctx.message.text.replace(/^\/start(@\w+)?\s*/i, '').trim();
-      const m = payload.match(/^aff_(\d+)$/i);
+      // Dukung dua format: seller_<ID> (baru) dan aff_<ID> (link lama)
+      const m = payload.match(/^(?:seller|aff)_(\d+)$/i);
 
       // Cek dulu status SEBELUM dicatat
       const isFirstTime = !userService.isKnown(userId);
@@ -284,8 +285,8 @@ function register(bot) {
       if (m && isFirstTime) {
         const affiliatorId = parseInt(m[1], 10);
 
-        if (affiliateService.isAffiliator(affiliatorId) && !affiliateService.hasReferral(userId)) {
-          affiliateService.setReferral(userId, affiliatorId);
+        if (sellerService.isSeller(affiliatorId) && !sellerService.hasReferral(userId)) {
+          sellerService.setReferral(userId, affiliatorId);
         }
       }
     } catch (err) {
