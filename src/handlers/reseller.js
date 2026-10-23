@@ -626,6 +626,47 @@ function register(bot) {
 
     pendingWd.delete(userId);
 
+    // ─── Validasi ulang saldo ke-2: kondisi bisa berubah sejak konfirmasi ───
+    const cek = resellerService.getReseller(userId);
+    if (!cek) {
+      await ctx.answerCbQuery('Bukan reseller.', { show_alert: true });
+      return;
+    }
+
+    if ((cek.balance || 0) < req.amount) {
+      await ctx.answerCbQuery('Saldo tidak mencukupi', { show_alert: true });
+      await ctx
+        .editMessageText(
+          formatError(
+            `Saldo kamu berubah dan sekarang tidak mencukupi.\n\n` +
+              `Saldo saat ini: <b>${rupiah(cek.balance || 0)}</b>\n` +
+              `Diminta: <b>${rupiah(req.amount)}</b>\n\n` +
+              `<i>Ajukan ulang dengan</i> <code>/reseller wd &lt;nominal&gt;</code>`
+          ),
+          { parse_mode: 'HTML' }
+        )
+        .catch(() => {});
+      return;
+    }
+
+    if (req.amount < resellerService.MIN_WITHDRAW) {
+      await ctx.answerCbQuery('Nominal di bawah minimum', { show_alert: true });
+      await ctx
+        .editMessageText(
+          formatError(`Minimum penarikan <b>${rupiah(resellerService.MIN_WITHDRAW)}</b>.`),
+          { parse_mode: 'HTML' }
+        )
+        .catch(() => {});
+      return;
+    }
+
+    // Simpan kondisi terbaru untuk ditampilkan
+    const wNow = resellerService.getWallet(userId);
+    if (wNow) {
+      req.wallet = wNow.wallet;
+      req.account = wNow.account;
+    }
+
     const result = resellerService.createWithdrawal({
       resellerId: userId,
       wallet: req.wallet,
