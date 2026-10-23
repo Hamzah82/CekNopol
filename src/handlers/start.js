@@ -97,10 +97,15 @@ function buildCommands() {
 }
 
 /**
- * Bangun pricelist dinamis
+ * Bangun pricelist dinamis.
+ *
+ * Harga token HARUS memperhitungkan profit seller bila user diundang
+ * seller, agar sama dengan nominal yang ditagih saat /buy.
+ *
+ * @param {number} [userId] - untuk menentukan profit seller
  * @returns {string}
  */
-function buildPricelist() {
+function buildPricelist(userId) {
   const prices = priceService.getAllPrices();
 
   const lines = [
@@ -114,7 +119,10 @@ function buildPricelist() {
     lines.push(`/<b>${command}</b> — ${price} token  <i>(${label})</i>`);
   }
 
-  const hargaToken = orderService.getPricePerToken();
+  // Profit seller hanya berlaku bagi user yang diundang seller
+  const sellerProfit = userId ? sellerService.getProfitForUser(userId) : 0;
+  const hargaToken = orderService.getPricePerToken(undefined, sellerProfit);
+
   lines.push(``);
   lines.push(`💵 <b>1 token = ${rupiah(hargaToken)}</b>`);
   lines.push(`<i>Saldo kurang dari harga layanan = ditolak.</i>`);
@@ -182,7 +190,7 @@ function buildSection(key, userId) {
     case 'cmd':
       return buildCommands();
     case 'harga':
-      return buildPricelist();
+      return buildPricelist(userId);
     case 'beli':
       return buildHowToBuy();
     case 'format':
