@@ -619,8 +619,11 @@ function register(bot) {
     await ctx.answerCbQuery('Pilihan tersimpan');
 
     const label = sellerService.walletLabel(wallet);
-    const contoh =
-      wallet === 'bank jago' ? 'contoh: <code>1234567890</code> (nomor rekening)' : 'contoh: <code>08123456789</code>';
+    // Bank pakai nomor rekening, e-wallet pakai nomor HP
+    const isBank = wallet === 'bank jago' || wallet === 'seabank';
+    const contoh = isBank
+      ? 'contoh: <code>1234567890</code> (nomor rekening)'
+      : 'contoh: <code>08123456789</code>';
 
     try {
       await ctx.editMessageText(

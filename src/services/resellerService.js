@@ -18,11 +18,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const WALLETS = ['shopeepay', 'gopay', 'bank jago'];
+const WALLETS = ['shopeepay', 'gopay', 'bank jago', 'seabank'];
 const WALLET_LABELS = {
   shopeepay: 'ShopeePay',
   gopay: 'GOPAY',
   'bank jago': 'Bank Jago',
+  seabank: 'SeaBank',
 };
 const MIN_WITHDRAW = 10000;
 

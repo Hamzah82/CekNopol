@@ -22,13 +22,14 @@ const fs = require('fs');
 const path = require('path');
 
 /** Wallet yang didukung untuk penarikan */
-const WALLETS = ['shopeepay', 'gopay', 'bank jago'];
+const WALLETS = ['shopeepay', 'gopay', 'bank jago', 'seabank'];
 
 /** Label tampilan wallet */
 const WALLET_LABELS = {
   shopeepay: 'ShopeePay',
   gopay: 'GOPAY',
   'bank jago': 'Bank Jago',
+  seabank: 'SeaBank',
 };
 
 /** Minimum penarikan (rupiah) */
