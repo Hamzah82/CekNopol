@@ -11,6 +11,7 @@ const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const cooldownService = require('../services/cooldownService');
+const serviceToggle = require('../services/serviceToggle');
 const { sendLoading, clearLoading } = require('../utils/loading');
 
 // Regex validasi NIK: 16 digit angka
@@ -47,6 +48,31 @@ function register(bot) {
     // Extract NIK dari argumen command
     const nik = ctx.message.text.replace(/^\/nik2kk(@\w+)?\s*/, '').trim();
 
+    // ─── Toggle layanan: enable / disable (main admin) ──────
+    if (/^(enable|disable)(\s|$)/i.test(nik)) {
+      if (!isMainAdmin(userId)) {
+        return; // bukan admin -> diam total, tanpa jejak
+      }
+
+      const aksi = nik.toLowerCase().startsWith('enable') ? true : false;
+      const hasil = serviceToggle.setEnabled('nik2kk', aksi);
+
+      if (!hasil.success) {
+        ctx.reply(formatError(hasil.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        (aksi ? '✅' : '🚫') +
+          ` <b>Layanan NIK ${aksi ? 'DIAKTIFKAN' : 'DIMATIKAN'}</b>\n\n` +
+          `Command: <code>/nik2kk</code>\n` +
+          `<i>${aksi ? 'User sudah bisa memakai lagi.' : 'User tidak akan mendapat balasan apa pun.'}</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+
     // SETPRICE_BLOCK
     if (/^setprice(\s|$)/i.test(nik)) {
       if (!isMainAdmin(userId)) {
@@ -81,6 +107,11 @@ function register(bot) {
           `<i>Berlaku untuk pemakaian /nik2kk berikutnya.</i>`,
         { parse_mode: 'HTML' }
       );
+      return;
+    }
+
+    // ─── Layanan mati -> user biasa DIAM TOTAL (tanpa jejak) ───
+    if (!serviceToggle.isEnabled('nik2kk') && !isMainAdmin(userId)) {
       return;
     }
 

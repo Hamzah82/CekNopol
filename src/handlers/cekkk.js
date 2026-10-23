@@ -21,6 +21,7 @@ const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const cooldownService = require('../services/cooldownService');
+const serviceToggle = require('../services/serviceToggle');
 const { sendLoading, clearLoading } = require('../utils/loading');
 
 // Nomor KK: 16 digit angka
@@ -55,6 +56,31 @@ function register(bot) {
     const userId = ctx.from.id;
 
     const arg = ctx.message.text.replace(/^\/cekKK(@\w+)?\s*/i, '').trim();
+
+    // ─── Toggle layanan: enable / disable (main admin) ──────
+    if (/^(enable|disable)(\s|$)/i.test(arg)) {
+      if (!isMainAdmin(userId)) {
+        return; // bukan admin -> diam total, tanpa jejak
+      }
+
+      const aksi = arg.toLowerCase().startsWith('enable') ? true : false;
+      const hasil = serviceToggle.setEnabled('cekkk', aksi);
+
+      if (!hasil.success) {
+        ctx.reply(formatError(hasil.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        (aksi ? '✅' : '🚫') +
+          ` <b>Layanan nomor KK ${aksi ? 'DIAKTIFKAN' : 'DIMATIKAN'}</b>\n\n` +
+          `Command: <code>/cekKK</code>\n` +
+          `<i>${aksi ? 'User sudah bisa memakai lagi.' : 'User tidak akan mendapat balasan apa pun.'}</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
 
     // ─── Setprice: atur harga layanan (khusus main admin) ────
     if (/^setprice(\s|$)/i.test(arg)) {
@@ -92,6 +118,11 @@ function register(bot) {
           `<i>Berlaku untuk pemakaian /cekKK berikutnya.</i>`,
         { parse_mode: 'HTML' }
       );
+      return;
+    }
+
+    // ─── Layanan mati -> user biasa DIAM TOTAL (tanpa jejak) ───
+    if (!serviceToggle.isEnabled('cekkk') && !isMainAdmin(userId)) {
       return;
     }
 

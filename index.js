@@ -46,7 +46,7 @@ if (!fs.existsSync(dbPath)) {
 }
 
 // Pastikan file JSON default ada
-const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.json', 'reseller.json', 'orders.json', 'settings.json', 'prices.json', 'loggroup.json', 'stats.json', 'kk.json', 'affiliators.json', 'referrals.json', 'withdrawals.json', 'users.json', 'sellers.json', 'sellerrefs.json', 'sellerwds.json', 'resellers.json', 'resellerrefs.json', 'resellerwds.json'];
+const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.json', 'reseller.json', 'orders.json', 'settings.json', 'prices.json', 'loggroup.json', 'stats.json', 'kk.json', 'affiliators.json', 'referrals.json', 'withdrawals.json', 'users.json', 'sellers.json', 'sellerrefs.json', 'sellerwds.json', 'resellers.json', 'resellerrefs.json', 'resellerwds.json', 'services.json'];
 for (const file of dbFiles) {
   const filePath = path.join(dbPath, file);
   if (!fs.existsSync(filePath)) {
@@ -55,6 +55,12 @@ for (const file of dbFiles) {
       defaultContent = '[]';
     } else if (file === 'settings.json') {
       defaultContent = JSON.stringify({ profit: 0, qrisPath: 'assets/qris.jpg' }, null, 2);
+    } else if (file === 'services.json') {
+      defaultContent = JSON.stringify(
+        { ceknopol: true, ceknama: true, nik2kk: true, ceknomor: true, cekkk: true },
+        null,
+        2
+      );
     } else if (file === 'stats.json') {
       defaultContent = JSON.stringify(
         { days: {}, services: {}, lastTokensRemaining: null, lastTokensAt: null, lastTokensService: null },

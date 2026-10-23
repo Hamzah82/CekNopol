@@ -15,6 +15,7 @@ const sellerService = require('../services/sellerService');
 const resellerService = require('../services/resellerService');
 const userService = require('../services/userService');
 const channelGuard = require('../services/channelGuard');
+const serviceToggle = require('../services/serviceToggle');
 
 /** Prefix callback agar tidak bentrok dengan handler lain */
 const CB = 'menu:';
@@ -85,11 +86,11 @@ function buildCommands() {
     `📋 <b>DAFTAR COMMAND</b>`,
     ``,
     `<b>🔍 Layanan Pencarian</b>`,
-    `/ceknopol &lt;plat&gt; — data kendaraan`,
-    `/ceknama &lt;nama&gt; — data kependudukan`,
-    `/nik2kk &lt;nik&gt; — NIK ke KK`,
-    `/ceknomor &lt;nomor&gt; — pemilik nomor HP`,
-    `/cekKK &lt;noKK&gt; — data seluruh anggota keluarga`,
+    ...(serviceToggle.isEnabled('ceknopol') ? [`/ceknopol &lt;plat&gt; — data kendaraan`] : []),
+    ...(serviceToggle.isEnabled('ceknama') ? [`/ceknama &lt;nama&gt; — data kependudukan`] : []),
+    ...(serviceToggle.isEnabled('nik2kk') ? [`/nik2kk &lt;nik&gt; — NIK ke KK`] : []),
+    ...(serviceToggle.isEnabled('ceknomor') ? [`/ceknomor &lt;nomor&gt; — pemilik nomor HP`] : []),
+    ...(serviceToggle.isEnabled('cekkk') ? [`/cekKK &lt;noKK&gt; — data seluruh anggota keluarga`] : []),
     ``,
     `<b>💰 Token</b>`,
     `/token — cek sisa token kamu`,
@@ -107,7 +108,8 @@ function buildCommands() {
  * @returns {string}
  */
 function buildPricelist(userId) {
-  const prices = priceService.getAllPrices();
+  // Hanya tampilkan layanan yang AKTIF
+  const prices = priceService.getAllPrices().filter((item) => serviceToggle.isEnabled(item.service));
 
   const lines = [
     `💰 <b>DAFTAR HARGA</b>`,

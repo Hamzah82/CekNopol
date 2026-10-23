@@ -10,6 +10,7 @@ const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const cooldownService = require('../services/cooldownService');
+const serviceToggle = require('../services/serviceToggle');
 const { sendLoading, clearLoading } = require('../utils/loading');
 
 /** @type {number[]} */
@@ -42,6 +43,31 @@ function register(bot) {
 
     // Extract nama dari argumen command
     const nama = ctx.message.text.replace(/^\/ceknama(@\w+)?\s*/, '').trim();
+
+    // ─── Toggle layanan: enable / disable (main admin) ──────
+    if (/^(enable|disable)(\s|$)/i.test(nama)) {
+      if (!isMainAdmin(userId)) {
+        return; // bukan admin -> diam total, tanpa jejak
+      }
+
+      const aksi = nama.toLowerCase().startsWith('enable') ? true : false;
+      const hasil = serviceToggle.setEnabled('ceknama', aksi);
+
+      if (!hasil.success) {
+        ctx.reply(formatError(hasil.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        (aksi ? '✅' : '🚫') +
+          ` <b>Layanan nama ${aksi ? 'DIAKTIFKAN' : 'DIMATIKAN'}</b>\n\n` +
+          `Command: <code>/ceknama</code>\n` +
+          `<i>${aksi ? 'User sudah bisa memakai lagi.' : 'User tidak akan mendapat balasan apa pun.'}</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
 
     // SETPRICE_BLOCK
     if (/^setprice(\s|$)/i.test(nama)) {
@@ -77,6 +103,11 @@ function register(bot) {
           `<i>Berlaku untuk pemakaian /ceknama berikutnya.</i>`,
         { parse_mode: 'HTML' }
       );
+      return;
+    }
+
+    // ─── Layanan mati -> user biasa DIAM TOTAL (tanpa jejak) ───
+    if (!serviceToggle.isEnabled('ceknama') && !isMainAdmin(userId)) {
       return;
     }
 

@@ -33,6 +33,7 @@ const logService = require('./services/logService');
 const statsService = require('./services/statsService');
 const sellerService = require('./services/sellerService');
 const resellerService = require('./services/resellerService');
+const serviceToggle = require('./services/serviceToggle');
 const userService = require('./services/userService');
 
 /**
@@ -60,6 +61,7 @@ function createBot(config) {
   statsService.setDbPath(dbPath);
   sellerService.setDbPath(dbPath);
   resellerService.setDbPath(dbPath);
+  serviceToggle.setDbPath(dbPath);
   userService.setDbPath(dbPath);
 
   // Inisialisasi API service

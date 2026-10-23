@@ -11,6 +11,7 @@ const refundService = require('../services/refundService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const cooldownService = require('../services/cooldownService');
+const serviceToggle = require('../services/serviceToggle');
 const { sendLoading, clearLoading } = require('../utils/loading');
 
 // Regex validasi nomor HP: 08xx atau +628xx (min 10 digit, max 15 digit)
@@ -47,6 +48,31 @@ function register(bot) {
     // Extract nomor dari argumen command
     const nomor = ctx.message.text.replace(/^\/ceknomor(@\w+)?\s*/, '').trim();
 
+    // ─── Toggle layanan: enable / disable (main admin) ──────
+    if (/^(enable|disable)(\s|$)/i.test(nomor)) {
+      if (!isMainAdmin(userId)) {
+        return; // bukan admin -> diam total, tanpa jejak
+      }
+
+      const aksi = nomor.toLowerCase().startsWith('enable') ? true : false;
+      const hasil = serviceToggle.setEnabled('ceknomor', aksi);
+
+      if (!hasil.success) {
+        ctx.reply(formatError(hasil.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        (aksi ? '✅' : '🚫') +
+          ` <b>Layanan nomor HP ${aksi ? 'DIAKTIFKAN' : 'DIMATIKAN'}</b>\n\n` +
+          `Command: <code>/ceknomor</code>\n` +
+          `<i>${aksi ? 'User sudah bisa memakai lagi.' : 'User tidak akan mendapat balasan apa pun.'}</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+
     // SETPRICE_BLOCK
     if (/^setprice(\s|$)/i.test(nomor)) {
       if (!isMainAdmin(userId)) {
@@ -81,6 +107,11 @@ function register(bot) {
           `<i>Berlaku untuk pemakaian /ceknomor berikutnya.</i>`,
         { parse_mode: 'HTML' }
       );
+      return;
+    }
+
+    // ─── Layanan mati -> user biasa DIAM TOTAL (tanpa jejak) ───
+    if (!serviceToggle.isEnabled('ceknomor') && !isMainAdmin(userId)) {
       return;
     }
 

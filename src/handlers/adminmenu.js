@@ -11,6 +11,7 @@ const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const sellerService = require('../services/sellerService');
 const resellerService = require('../services/resellerService');
+const serviceToggle = require('../services/serviceToggle');
 const userService = require('../services/userService');
 const { formatError } = require('../utils/format');
 
@@ -229,6 +230,18 @@ function buildGuide() {
     `<b>Tidak</b> menampilkan hasil pencarian.`,
     ``,
     `Hanya 1 grup aktif. Hanya owner.`,
+    ``,
+    `─────────────────────`,
+    `<b>🔌 STATUS LAYANAN</b>`,
+    ``,
+    ...serviceToggle.getAll().map(
+      ({ command, enabled }) => `<code>/${command}</code> — ${enabled ? '✅ AKTIF' : '🚫 MATI'}`
+    ),
+    ``,
+    `Nyalakan/matikan: <code>/ceknama enable</code> atau <code>/ceknama disable</code>`,
+    `<i>Berlaku untuk semua layanan. Saat mati, user tidak dapat balasan apa pun.</i>`,
+    ``,
+    `<i>Hanya owner.</i>`,
     ``,
     `─────────────────────`,
     `<b>🏪 SELLER</b>`,
