@@ -207,11 +207,34 @@ function register(bot) {
       return;
     }
 
-    // Profit seller & reseller sesuai siapa yang mengundang user
+    // ─── Hitung bagian seller & reseller sesuai konteks ───
+    //
+    // Harga jual seller ke USER LANGSUNG berbeda dengan ke RESELLER,
+    // jadi bagian seller juga harus dibedakan:
+    //   - user langsung  -> profit seller di atas harga dasar
+    //   - user via reseller -> selisih harga ke reseller dgn harga dasar
     const sellerId = sellerService.getReferrer(userId);
-    const sellerProfit = sellerId ? sellerService.getProfitForUser(userId) : 0;
-
     const resellerId = resellerService.getResellerIdForUser(userId);
+
+    const hargaDasarOwner = orderService.getPricePerToken();
+
+    let sellerProfit = 0;
+    if (sellerId) {
+      if (resellerId) {
+        // User diundang reseller -> pakai selisih harga ke reseller
+        const seller = sellerService.getSeller(sellerId);
+        const profitUserLangsung = seller
+          ? Math.max(0, Math.floor(Number(seller.profitPerToken) || 0))
+          : 0;
+        const hargaUserSeller = orderService.getPricePerToken(undefined, profitUserLangsung);
+
+        sellerProfit = sellerService.getSellerShareForUser(userId, hargaDasarOwner, hargaUserSeller);
+      } else {
+        // User langsung dari seller
+        sellerProfit = sellerService.getProfitForUser(userId);
+      }
+    }
+
     const resellerProfit = resellerId ? resellerService.getProfitForUser(userId) : 0;
 
     const order = orderService.createOrder({

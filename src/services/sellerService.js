@@ -448,6 +448,47 @@ function getPriceToReseller(userId, hargaUserBiasa) {
   return Math.max(0, Math.floor(Number(hargaUserBiasa) || 0));
 }
 
+
+/**
+ * Hitung bagian seller untuk seorang USER, sesuai konteksnya.
+ *
+ * PENTING: harga jual seller ke user langsung BERBEDA dengan harga
+ * jual seller ke reseller. Maka bagian seller juga berbeda:
+ *
+ *   - User diundang seller langsung:
+ *       bagian = profitPerToken (profit seller di atas harga dasar)
+ *
+ *   - User diundang reseller:
+ *       bagian = hargaKeReseller - hargaDasarOwner
+ *       (selisih antara harga yang seller tetapkan ke reseller
+ *        dengan harga dasar dari owner)
+ *
+ * @param {number|string} userId - pembeli
+ * @param {number} hargaDasarOwner - modal + profit owner
+ * @param {number} [hargaUserSeller] - harga jual seller ke user langsung
+ * @returns {number} bagian seller per token
+ */
+function getSellerShareForUser(userId, hargaDasarOwner, hargaUserSeller) {
+  const sellerId = getReferrer(userId);
+  if (!sellerId) return 0;
+
+  const seller = getSeller(sellerId);
+  if (!seller) return 0;
+
+  const dasar = Math.max(0, Math.floor(Number(hargaDasarOwner) || 0));
+
+  // Apakah user ini diundang lewat reseller?
+  // Ditandai oleh pemanggil lewat hargaUserSeller yang diberikan.
+  if (hargaUserSeller === undefined) {
+    // Konteks: user langsung dari seller
+    return Math.max(0, Math.floor(Number(seller.profitPerToken) || 0));
+  }
+
+  // Konteks: user dari reseller -> pakai selisih harga ke reseller
+  const hargaKeReseller = getPriceToReseller(sellerId, hargaUserSeller);
+  return Math.max(0, hargaKeReseller - dasar);
+}
+
 module.exports = {
   WALLETS,
   WALLET_LABELS,
@@ -473,6 +514,7 @@ module.exports = {
   getReferrer,
   hasReferral,
   getProfitForUser,
+  getSellerShareForUser,
   // Withdrawal
   createWithdrawal,
   getWithdrawal,
