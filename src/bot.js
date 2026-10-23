@@ -18,6 +18,7 @@ const statsHandler = require('./handlers/stats');
 const cleardepoHandler = require('./handlers/cleardepo');
 const cekkkHandler = require('./handlers/cekkk');
 const sellerHandler = require('./handlers/seller');
+const giveHandler = require('./handlers/give');
 const backupHandler = require('./handlers/backup');
 const usersHandler = require('./handlers/users');
 const broadcastHandler = require('./handlers/broadcast');
@@ -31,6 +32,7 @@ const priceService = require('./services/priceService');
 const logService = require('./services/logService');
 const statsService = require('./services/statsService');
 const sellerService = require('./services/sellerService');
+const resellerService = require('./services/resellerService');
 const userService = require('./services/userService');
 
 /**
@@ -57,6 +59,7 @@ function createBot(config) {
   logService.setDbPath(dbPath);
   statsService.setDbPath(dbPath);
   sellerService.setDbPath(dbPath);
+  resellerService.setDbPath(dbPath);
   userService.setDbPath(dbPath);
 
   // Inisialisasi API service
@@ -68,7 +71,6 @@ function createBot(config) {
   // Inisialisasi admin IDs untuk handler token
   tokenHandler.initAdmins(config.adminIds || []);
   adminHandler.initSetupAdmins(config.adminIds || []);
-  resellerHandler.initSetupAdmins(config.adminIds || []);
   refundService.initSetupAdmins(config.adminIds || []);
   buyHandler.initSetupAdmins(config.adminIds || []);
   adminmenuHandler.initSetupAdmins(config.adminIds || []);
@@ -82,6 +84,8 @@ function createBot(config) {
   cleardepoHandler.initSetupAdmins(config.adminIds || []);
   cekkkHandler.initSetupAdmins(config.adminIds || []);
   sellerHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
+  resellerHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
+  giveHandler.initSetupAdmins(config.adminIds || []);
   backupHandler.initSetupAdmins(config.adminIds || [], dbPath);
   usersHandler.initSetupAdmins(config.adminIds || []);
   broadcastHandler.initSetupAdmins(config.adminIds || []);
@@ -93,7 +97,6 @@ function createBot(config) {
   ceknamaHandler.register(bot);
   adminHandler.register(bot);
   resellerHandler.register(bot);
-  resellerHandler.registerGive(bot);
   nik2kkHandler.register(bot);
   ceknomorHandler.register(bot);
   buyHandler.register(bot);
@@ -103,6 +106,7 @@ function createBot(config) {
   cleardepoHandler.register(bot);
   cekkkHandler.register(bot);
   sellerHandler.register(bot);
+  giveHandler.register(bot);
   backupHandler.register(bot);
   usersHandler.register(bot);
   broadcastHandler.register(bot);

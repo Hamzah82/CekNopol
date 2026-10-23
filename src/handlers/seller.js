@@ -121,6 +121,7 @@ function register(bot) {
         lines.push(`<b>💰 Kondisi kamu</b>`);
         lines.push(`Profit: <b>${rupiah(s.profitPerToken || 0)}</b> / token`);
         lines.push(`Harga jual kamu: <b>${rupiah(hargaSaya)}</b> / token`);
+        lines.push(`Harga ke reseller: <b>${rupiah(sellerService.getPriceToReseller(userId, hargaSaya))}</b> / token`);
         lines.push(`Saldo: <b>${rupiah(s.balance || 0)}</b>`);
         lines.push(``, `<b>🏦 Wallet penarikan</b>`);
         if (saved) {
@@ -131,7 +132,8 @@ function register(bot) {
         lines.push(``, `<b>📋 Command</b>`);
         lines.push(`<code>/seller link</code> — link referral`);
         lines.push(`<code>/seller saldo</code> — rincian saldo`);
-        lines.push(`<code>/seller setprofit &lt;nominal&gt;</code> — atur profit/token`);
+        lines.push(`<code>/seller setprofit &lt;nominal&gt;</code> — profit/token`);
+        lines.push(`<code>/seller setprice &lt;nominal&gt;</code> — harga ke reseller`);
         lines.push(`<code>/seller setwallet</code> — atur wallet tujuan`);
         lines.push(`<code>/seller wd &lt;nominal&gt;</code> — cairkan saldo`);
         lines.push(``, `<i>Harga dasar: ${rupiah(hargaAdmin)} / token</i>`);
@@ -280,6 +282,66 @@ function register(bot) {
             `Profit kamu: <b>${rupiah(result.data.profitPerToken)}</b> / token\n` +
             `Harga jual kamu: <b>${rupiah(hargaBaru)}</b> / token\n\n` +
             `<i>Berlaku untuk order berikutnya. Profit admin tidak terpengaruh.</i>`
+        ),
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    // ─── /seller setprice <nominal> (harga ke reseller) ─────
+    if (sub === 'setprice') {
+      const s2 = sellerService.getSeller(userId);
+      if (!s2) {
+        ctx.reply(formatError('Hanya <b>seller</b> yang bisa mengatur harga.'), { parse_mode: 'HTML' });
+        return;
+      }
+
+      const hargaDasar = orderService.getPricePerToken();
+      const profitSeller = Math.max(0, Math.floor(Number(s2.profitPerToken) || 0));
+      const hargaUser = orderService.getPricePerToken(undefined, profitSeller);
+      const hargaReseller = sellerService.getPriceToReseller(userId, hargaUser);
+
+      const nominalRaw = parts[1];
+
+      if (!nominalRaw) {
+        ctx.reply(
+          [
+            `⚙️ <b>HARGA KE RESELLER</b>`,
+            ``,
+            `Harga kamu ke reseller: <b>${rupiah(hargaReseller)}</b> / token`,
+            ``,
+            `Harga dasar (modal + owner): ${rupiah(hargaDasar)}`,
+            `Harga kamu ke user biasa: <b>${rupiah(hargaUser)}</b>`,
+            ``,
+            `<i>Ini harga TOTAL yang dibayar reseller kamu.`,
+            `Reseller lalu menambahkan profitnya sendiri di atas harga ini.</i>`,
+            ``,
+            `Gunakan: <code>/seller setprice &lt;nominal&gt;</code>`,
+            `Contoh: <code>/seller setprice 3000</code>`,
+          ].join('\n'),
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const nominal = parseInt(String(nominalRaw).replace(/[^0-9]/g, ''), 10);
+      if (!Number.isFinite(nominal) || nominal < 0) {
+        ctx.reply(formatError('Nominal harus berupa angka ≥ 0.'), { parse_mode: 'HTML' });
+        return;
+      }
+
+      const result = sellerService.setPriceToReseller(userId, nominal, hargaDasar);
+      if (!result.success) {
+        ctx.reply(formatError(result.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        formatSuccess(
+          `<b>Harga ke reseller diperbarui</b>\n\n` +
+            `Harga ke reseller: <b>${rupiah(result.data.priceToReseller)}</b> / token\n` +
+            `Harga ke user biasa: ${rupiah(hargaUser)} / token\n\n` +
+            `<i>Berlaku untuk order berikutnya.</i>`
         ),
         { parse_mode: 'HTML' }
       );

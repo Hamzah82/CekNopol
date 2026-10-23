@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const orderService = require('../services/orderService');
 const sellerService = require('../services/sellerService');
+const resellerService = require('../services/resellerService');
 const tokenManager = require('../services/tokenManager');
 const { formatError } = require('../utils/format');
 
@@ -81,6 +82,15 @@ function formatOrderDetail(order) {
     lines.push(`<b>Seller:</b> <code>${sellerRefId}</code>`);
     if (order.sellerProfitPerToken) {
       lines.push(`<b>Profit seller:</b> ${rupiah(order.sellerProfitPerToken)} / token`);
+    }
+  }
+
+  // Info reseller (bila user diundang reseller)
+  const resellerRefId = order.resellerId || resellerService.getResellerIdForUser(order.userId);
+  if (resellerRefId) {
+    lines.push(`<b>Reseller:</b> <code>${resellerRefId}</code>`);
+    if (order.resellerProfitPerToken) {
+      lines.push(`<b>Profit reseller:</b> ${rupiah(order.resellerProfitPerToken)} / token`);
     }
   }
 
@@ -197,9 +207,12 @@ function register(bot) {
       return;
     }
 
-    // Profit seller hanya berlaku untuk user yang diundang seller
+    // Profit seller & reseller sesuai siapa yang mengundang user
     const sellerId = sellerService.getReferrer(userId);
     const sellerProfit = sellerId ? sellerService.getProfitForUser(userId) : 0;
+
+    const resellerId = resellerService.getResellerIdForUser(userId);
+    const resellerProfit = resellerId ? resellerService.getProfitForUser(userId) : 0;
 
     const order = orderService.createOrder({
       userId,
@@ -208,6 +221,8 @@ function register(bot) {
       amount,
       sellerProfit,
       sellerId,
+      resellerProfit,
+      resellerId,
     });
 
     const caption =
@@ -446,6 +461,25 @@ async function handleVerification(ctx, action) {
       console.error('[buy] gagal hitung reward seller:', err.message);
     }
 
+    // ─── Bagikan bagian reseller (jika user diundang reseller) ───
+    let resellerReward = null;
+    try {
+      resellerReward = require('./reseller').rewardReseller({
+        userId: target.userId,
+        amount: target.amount,
+        resellerProfitPerToken: target.resellerProfitPerToken,
+      });
+      if (resellerReward && resellerReward.resellerId && resellerReward.earned > 0) {
+        orderService.setResellerReward(target.id, {
+          resellerId: resellerReward.resellerId,
+          reward: resellerReward.earned,
+          profitPerToken: resellerReward.profitPerToken,
+        });
+      }
+    } catch (err) {
+      console.error('[buy] gagal hitung reward reseller:', err.message);
+    }
+
     ctx.reply(
       `✅ <b>Order diterima</b>\n\n` +
         `<b>Order ID:</b> <code>${target.id}</code>\n` +
@@ -455,6 +489,9 @@ async function handleVerification(ctx, action) {
         `<b>Saldo user sekarang:</b> ${newBalance} token\n\n` +
         (sellerReward && sellerReward.sellerId
           ? `\n🏪 <b>Seller:</b> <code>${sellerReward.sellerId}</code> — ${rupiah(sellerReward.earned)}\n`
+          : '') +
+        (resellerReward && resellerReward.resellerId
+          ? `🏬 <b>Reseller:</b> <code>${resellerReward.resellerId}</code> — ${rupiah(resellerReward.earned)}\n`
           : '') +
         `─────────────────────\n` +
         `<b>Saldo kamu (admin):</b> ${adminBalanceBefore} → <b>${adminBalanceAfter}</b> token` +
@@ -474,6 +511,25 @@ async function handleVerification(ctx, action) {
           `Terima kasih sudah berbelanja! 🐢`,
         { parse_mode: 'HTML' }
       );
+      // Notifikasi ke reseller (bila ada)
+      if (resellerReward && resellerReward.resellerId && resellerReward.earned > 0) {
+        try {
+          const rData = resellerService.getReseller(resellerReward.resellerId);
+          await ctx.telegram.sendMessage(
+            resellerReward.resellerId,
+            `🏬 <b>Penjualan Token</b>\n\n` +
+              `<b>Order ID:</b> <code>${target.id}</code>\n` +
+              `<b>Token terjual:</b> ${target.amount}\n` +
+              `<b>Bagian kamu:</b> <b>${rupiah(resellerReward.earned)}</b>\n` +
+              `<b>Saldo sekarang:</b> ${rupiah((rData && rData.balance) || 0)}\n\n` +
+              `<i>Cek saldo: <code>/reseller saldo</code></i>`,
+            { parse_mode: 'HTML' }
+          );
+        } catch (err) {
+          console.error(`[buy] gagal notifikasi reseller ${resellerReward.resellerId}:`, err.message);
+        }
+      }
+
       // Notifikasi ke seller (bila ada)
       if (sellerReward && sellerReward.sellerId && sellerReward.earned > 0) {
         try {

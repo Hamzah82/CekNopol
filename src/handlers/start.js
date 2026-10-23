@@ -12,6 +12,7 @@ const priceService = require('../services/priceService');
 const tokenManager = require('../services/tokenManager');
 const orderService = require('../services/orderService');
 const sellerService = require('../services/sellerService');
+const resellerService = require('../services/resellerService');
 const userService = require('../services/userService');
 const channelGuard = require('../services/channelGuard');
 
@@ -280,8 +281,8 @@ function register(bot) {
     // user lama yang tokennya habis juga bersaldo 0.
     try {
       const payload = ctx.message.text.replace(/^\/start(@\w+)?\s*/i, '').trim();
-      // Dukung dua format: seller_<ID> (baru) dan aff_<ID> (link lama)
-      const m = payload.match(/^(?:seller|aff)_(\d+)$/i);
+      // Dukung format: seller_<ID>, rsl_<ID>, dan aff_<ID> (link lama)
+      const m = payload.match(/^(seller|aff|rsl)_(\d+)$/i);
 
       // Cek dulu status SEBELUM dicatat
       const isFirstTime = !userService.isKnown(userId);
@@ -291,10 +292,26 @@ function register(bot) {
 
       // Referral hanya berlaku untuk user yang benar-benar baru
       if (m && isFirstTime) {
-        const affiliatorId = parseInt(m[1], 10);
+        const jenis = String(m[1]).toLowerCase();
+        const pengundangId = parseInt(m[2], 10);
 
-        if (sellerService.isSeller(affiliatorId) && !sellerService.hasReferral(userId)) {
-          sellerService.setReferral(userId, affiliatorId);
+        // Link reseller -> user terhubung ke reseller
+        if (jenis === 'rsl') {
+          if (resellerService.isReseller(pengundangId) && !resellerService.hasReferral(userId)) {
+            resellerService.setReferral(userId, pengundangId);
+
+            // User ini juga tetap terhubung ke SELLER dari reseller tsb,
+            // supaya rantai profit owner -> seller -> reseller utuh.
+            const r = resellerService.getReseller(pengundangId);
+            if (r && r.sellerId && !sellerService.hasReferral(userId)) {
+              sellerService.setReferral(userId, r.sellerId);
+            }
+          }
+        } else {
+          // Link seller (seller_ / aff_ lama)
+          if (sellerService.isSeller(pengundangId) && !sellerService.hasReferral(userId)) {
+            sellerService.setReferral(userId, pengundangId);
+          }
         }
       }
     } catch (err) {

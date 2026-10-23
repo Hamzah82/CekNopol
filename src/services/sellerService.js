@@ -122,7 +122,8 @@ function addSeller({ userId, addedBy }) {
 
   all[String(id)] = {
     userId: id,
-    profitPerToken: 0,
+    profitPerToken: 0,      // profit seller dari penjualan ke USER langsung
+    priceToReseller: 0,     // harga TOTAL yang seller tetapkan ke reseller-nya
     balance: 0,
     totalEarned: 0,
     // Wallet tersimpan agar tidak perlu diisi ulang saat penarikan
@@ -391,6 +392,61 @@ function getWallet(userId) {
   return { wallet: seller.wallet, account: seller.account };
 }
 
+
+/**
+ * Set harga TOTAL yang seller tetapkan ke reseller-nya.
+ * Tidak boleh di bawah harga dasar dari owner.
+ *
+ * @param {number|string} userId
+ * @param {number} nominal - harga total per token untuk reseller
+ * @param {number} minPrice - harga dasar (modal + profit owner)
+ * @returns {{success: boolean, error?: string, data?: object}}
+ */
+function setPriceToReseller(userId, nominal, minPrice) {
+  const all = readJson('sellers.json', {});
+  const key = String(userId);
+  const seller = all[key];
+
+  if (!seller) return { success: false, error: `User <code>${key}</code> bukan seller.` };
+
+  const n = Math.floor(Number(nominal));
+  if (!Number.isFinite(n) || n < 0) {
+    return { success: false, error: 'Nominal harus berupa angka ≥ 0.' };
+  }
+
+  const min = Math.max(0, Math.floor(Number(minPrice) || 0));
+  if (n < min) {
+    return {
+      success: false,
+      error: `Harga tidak boleh di bawah harga dasar (<b>Rp${min.toLocaleString('id-ID')}</b>).`,
+    };
+  }
+
+  seller.priceToReseller = n;
+  all[key] = seller;
+  writeJson('sellers.json', all);
+  return { success: true, data: seller };
+}
+
+/**
+ * Ambil harga seller ke reseller.
+ * Bila belum diset (0), pakai harga jual ke user biasa sebagai default.
+ *
+ * @param {number|string} userId
+ * @param {number} hargaUserBiasa - harga jual seller ke user langsung
+ * @returns {number}
+ */
+function getPriceToReseller(userId, hargaUserBiasa) {
+  const seller = getSeller(userId);
+  if (!seller) return Math.max(0, Math.floor(Number(hargaUserBiasa) || 0));
+
+  const p = Math.floor(Number(seller.priceToReseller) || 0);
+  if (p > 0) return p;
+
+  // Default: sama dengan harga jual ke user biasa
+  return Math.max(0, Math.floor(Number(hargaUserBiasa) || 0));
+}
+
 module.exports = {
   WALLETS,
   WALLET_LABELS,
@@ -405,6 +461,8 @@ module.exports = {
   addSeller,
   removeSeller,
   setProfitPerToken,
+  setPriceToReseller,
+  getPriceToReseller,
   setWallet,
   getWallet,
   addBalance,

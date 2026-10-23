@@ -129,10 +129,11 @@ function getQrisPath() {
  * @param {number} [sellerProfit] - Profit seller (default 0)
  * @returns {number} Harga per token, mis. 2000 + 500 + 500 = 3000
  */
-function getPricePerToken(profit, sellerProfit) {
+function getPricePerToken(profit, sellerProfit, resellerProfit) {
   const prof = profit === undefined ? getProfit() : Math.max(0, Math.floor(Number(profit) || 0));
   const sp = Math.max(0, Math.floor(Number(sellerProfit) || 0));
-  return BASE_PRICE_PER_TOKEN + prof + sp;
+  const rp = Math.max(0, Math.floor(Number(resellerProfit) || 0));
+  return BASE_PRICE_PER_TOKEN + prof + sp + rp;
 }
 
 /**
@@ -150,12 +151,13 @@ function getPricePerToken(profit, sellerProfit) {
  * @param {number} [sellerProfit] - Profit seller (default 0)
  * @returns {{pricePerToken: number, profit: number, sellerProfit: number, total: number}}
  */
-function calculatePrice(amount, profit, sellerProfit) {
+function calculatePrice(amount, profit, sellerProfit, resellerProfit) {
   const prof = profit === undefined ? getProfit() : Math.max(0, Math.floor(Number(profit) || 0));
   const sp = Math.max(0, Math.floor(Number(sellerProfit) || 0));
-  const pricePerToken = BASE_PRICE_PER_TOKEN + prof + sp;
+  const rp = Math.max(0, Math.floor(Number(resellerProfit) || 0));
+  const pricePerToken = BASE_PRICE_PER_TOKEN + prof + sp + rp;
   const total = amount * pricePerToken;
-  return { pricePerToken, profit: prof, sellerProfit: sp, total };
+  return { pricePerToken, profit: prof, sellerProfit: sp, resellerProfit: rp, total };
 }
 
 /**
@@ -201,10 +203,10 @@ function writeOrders(data) {
  * @param {number|null} [params.sellerId] - ID seller yang mereferensikan user
  * @returns {object} Order yang dibuat
  */
-function createOrder({ userId, username, fullName, amount, sellerProfit, sellerId }) {
+function createOrder({ userId, username, fullName, amount, sellerProfit, sellerId, resellerProfit, resellerId }) {
   const orders = readOrders();
   const now = new Date().toISOString();
-  const price = calculatePrice(amount, undefined, sellerProfit);
+  const price = calculatePrice(amount, undefined, sellerProfit, resellerProfit);
 
   const id = `ORD-${Date.now()}`;
   const order = {
@@ -227,6 +229,10 @@ function createOrder({ userId, username, fullName, amount, sellerProfit, sellerI
     sellerId: sellerId ? Number(sellerId) : null,
     sellerProfitPerToken: price.sellerProfit,
     sellerReward: 0,
+    // ─── Reseller (lapis kedua) ───
+    resellerId: resellerId ? Number(resellerId) : null,
+    resellerProfitPerToken: price.resellerProfit,
+    resellerReward: 0,
   };
 
   orders[id] = order;
@@ -369,6 +375,7 @@ function getRevenue({ since } = {}) {
     omzet: 0,
     profit: 0,          // profit admin (bagian admin saja)
     sellerReward: 0,    // total bagian yang menjadi hak seller
+    resellerReward: 0,  // total bagian yang menjadi hak reseller
     modal: 0,
     tokens: 0,
     diterima: 0,
@@ -393,12 +400,13 @@ function getRevenue({ since } = {}) {
     acc.omzet += Number(o.total) || 0;
     acc.profit += Number(o.profit) * (Number(o.amount) || 0);
     acc.sellerReward += Number(o.sellerReward) || 0;
+    acc.resellerReward += Number(o.resellerReward) || 0;
     acc.tokens += Number(o.amount) || 0;
   }
 
   // Profit admin TIDAK dipotong seller — seller punya bagiannya sendiri.
   // Catatan: tidak ada "profit bersih" terpisah karena tidak ada potongan.
-  acc.modal = acc.omzet - acc.profit - acc.sellerReward;
+  acc.modal = acc.omzet - acc.profit - acc.sellerReward - acc.resellerReward;
   return acc;
 }
 
@@ -471,6 +479,30 @@ function setSellerReward(orderId, { sellerId, reward, profitPerToken }) {
   return order;
 }
 
+/**
+ * Catat bagian reseller pada order.
+ *
+ * @param {string} orderId
+ * @param {object} params
+ * @param {number} params.resellerId
+ * @param {number} params.reward
+ * @param {number} params.profitPerToken
+ * @returns {object|null}
+ */
+function setResellerReward(orderId, { resellerId, reward, profitPerToken }) {
+  const orders = readOrders();
+  const order = orders[orderId];
+  if (!order) return null;
+
+  order.resellerId = Number(resellerId) || null;
+  order.resellerReward = Math.max(0, Math.floor(Number(reward) || 0));
+  order.resellerProfitPerToken = Math.max(0, Math.floor(Number(profitPerToken) || 0));
+
+  orders[orderId] = order;
+  writeOrders(orders);
+  return order;
+}
+
 module.exports = {
   BASE_PRICE_PER_TOKEN,
   PRICE_PER_TOKEN,
@@ -490,6 +522,7 @@ module.exports = {
   readSettings,
   getRevenue,
   setSellerReward,
+  setResellerReward,
   clearRejectedOrders,
   countRejectedOrders,
 };

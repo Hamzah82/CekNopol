@@ -11,6 +11,7 @@
 const statsService = require('../services/statsService');
 const orderService = require('../services/orderService');
 const sellerService = require('../services/sellerService');
+const resellerService = require('../services/resellerService');
 const { formatError } = require('../utils/format');
 
 /** @type {number[]} */
@@ -156,18 +157,21 @@ function buildStats() {
     lines.push(`Omzet: <b>${rupiah(revToday.omzet)}</b>`);
     lines.push(`Profit admin: ${rupiah(revToday.profit)}`);
     lines.push(`Bagian seller: ${rupiah(revToday.sellerReward)}`);
+    lines.push(`Bagian reseller: ${rupiah(revToday.resellerReward)}`);
     lines.push(`Order: ${revToday.diterima} diterima`);
 
     lines.push(``, `<b>30 hari</b>`);
     lines.push(`Omzet: <b>${rupiah(revMonth.omzet)}</b>`);
     lines.push(`Profit admin: ${rupiah(revMonth.profit)}`);
     lines.push(`Bagian seller: ${rupiah(revMonth.sellerReward)}`);
+    lines.push(`Bagian reseller: ${rupiah(revMonth.resellerReward)}`);
     lines.push(`Order: ${revMonth.diterima} diterima`);
 
     lines.push(``, `<b>Total</b>`);
     lines.push(`Omzet: <b>${rupiah(revAll.omzet)}</b>`);
     lines.push(`Profit admin: ${rupiah(revAll.profit)}`);
     lines.push(`Bagian seller: ${rupiah(revAll.sellerReward)}`);
+    lines.push(`Bagian reseller: ${rupiah(revAll.resellerReward)}`);
     lines.push(`Modal: ${rupiah(revAll.modal)}`);
     lines.push(`Token terjual: <b>${revAll.tokens}</b>`);
     lines.push(``, `<b>Status order</b>`);
@@ -179,6 +183,9 @@ function buildStats() {
     // dari sumber lain (mis. penyesuaian manual).
     const sellers = sellerService.getAllSellers();
     const saldoSeller = sellers.reduce((a, s) => a + (Number(s.balance) || 0), 0);
+
+    const resellers = resellerService.getAllResellers();
+    const saldoReseller = resellers.reduce((a, r) => a + (Number(r.balance) || 0), 0);
 
     const wds = Object.values(sellerService.readWithdrawals());
     const menunggu = wds
@@ -193,6 +200,7 @@ function buildStats() {
     lines.push(`Sudah dicairkan: ${rupiah(sudahDibayar)}`);
     if (menunggu > 0) lines.push(`Menunggu diproses: ${rupiah(menunggu)}`);
     lines.push(`<b>Saldo seller belum dicairkan: ${rupiah(saldoSeller)}</b>`);
+    lines.push(`<b>Saldo reseller belum dicairkan: ${rupiah(saldoReseller)}</b>`);
     lines.push(`<i>Uang ini ada di tangan kamu, bukan milik kamu.</i>`);
   }
 

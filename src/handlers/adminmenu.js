@@ -10,6 +10,7 @@ const orderService = require('../services/orderService');
 const priceService = require('../services/priceService');
 const logService = require('../services/logService');
 const sellerService = require('../services/sellerService');
+const resellerService = require('../services/resellerService');
 const userService = require('../services/userService');
 const { formatError } = require('../utils/format');
 
@@ -261,6 +262,37 @@ function buildGuide() {
     `Wallet: ${sellerService.WALLETS.map((w) => sellerService.walletLabel(w)).join(', ')}`,
     ``,
     `<b>Penarikan:</b> notifikasi masuk ke owner → reply <code>/selesai</code>.`,
+    ``,
+    `─────────────────────`,
+    `<b>🏬 RESELLER (lapis kedua)</b>`,
+    ``,
+    `Struktur: Owner → Seller → Reseller → User`,
+    ``,
+    `<b>Seller mendaftarkan reseller:</b>`,
+    `<code>/reseller add &lt;ID&gt;</code> — hanya user yang dia undang`,
+    `<code>/reseller remove &lt;ID&gt;</code>`,
+    `<code>/reseller list</code>`,
+    ``,
+    `<b>Command reseller:</b>`,
+    `<code>/reseller setprofit &lt;nominal&gt;</code>`,
+    `<code>/reseller setwallet</code>`,
+    `<code>/reseller link</code>`,
+    `<code>/reseller saldo</code>`,
+    `<code>/reseller wd &lt;nominal&gt;</code>`,
+    ``,
+    `<b>Owner:</b> <code>/reseller wdlist</code>, <code>/resdone</code>`,
+    ``,
+    `Reseller terdaftar: <b>${resellerService.getAllResellers().length}</b>`,
+    ``,
+    `<b>Aliran harga:</b>`,
+    `harga user = modal + profit owner + profit seller + profit reseller`,
+    ``,
+    `<b>Harga seller ke reseller</b> diatur seller sendiri lewat`,
+    `<code>/seller setprice &lt;nominal&gt;</code> (default = harga user biasa).`,
+    ``,
+    `Profit tiap lapis terpisah — tidak saling mengurangi.`,
+    ``,
+    `<b>Penarikan reseller:</b> owner reply <code>/resdone</code>.`,
     ``,
     `─────────────────────`,
     `<b>👥 KELOLA ADMIN</b>`,
