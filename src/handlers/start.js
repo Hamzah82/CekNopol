@@ -257,6 +257,58 @@ function buildAdminShortcut() {
   ].join('\n');
 }
 
+
+/**
+ * Escape karakter HTML agar aman ditampilkan di Telegram.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHtml(str) {
+  return String(str === undefined || str === null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Kirim notifikasi ke seller/reseller bahwa ada user baru bergabung
+ * lewat link referral mereka.
+ *
+ * Tidak melempar error bila gagal (mis. user memblokir bot).
+ *
+ * @param {object} telegram - ctx.telegram
+ * @param {number} penerimaId - seller / reseller yang mengundang
+ * @param {object} data
+ * @param {string} data.peran - 'Seller' atau 'Reseller'
+ * @param {string} data.namaUser
+ * @param {string} data.usernameUser
+ * @param {number} data.userId
+ */
+function notifUndangan(telegram, penerimaId, { peran, namaUser, usernameUser, userId }) {
+  const teks = [
+    `🎉 <b>USER BARU BERGABUNG</b>`,
+    `─────────────────────`,
+    ``,
+    `Ada user baru masuk lewat link referral kamu.`,
+    ``,
+    `<b>Nama:</b> ${escapeHtml(namaUser)}`,
+    `<b>Username:</b> ${usernameUser}`,
+    `<b>ID:</b> <code>${userId}</code>`,
+    ``,
+    `─────────────────────`,
+    `User ini sekarang terhubung permanen ke kamu.`,
+    `Setiap pembelian token-nya akan memberi kamu bagian profit.`,
+    ``,
+    `<i>Lihat daftar: ${peran === 'Reseller' ? '/reseller link' : '/seller link'}</i>`,
+  ].join('\n');
+
+  Promise.resolve(telegram.sendMessage(penerimaId, teks, { parse_mode: 'HTML' })).catch(
+    (err) => {
+      console.error(`[start] gagal notif undangan ke ${penerimaId}:`, err.message);
+    }
+  );
+}
+
 /**
  * Register handler /start, /menu, dan callback tombol
  * @param {import('telegraf').Telegraf} bot - Instance Telegraf
@@ -295,6 +347,10 @@ function register(bot) {
         const jenis = String(m[1]).toLowerCase();
         const pengundangId = parseInt(m[2], 10);
 
+        // Nama tampilan user baru (untuk notifikasi)
+        const namaUser = [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(' ') || '-';
+        const usernameUser = ctx.from.username ? `@${ctx.from.username}` : '<i>tanpa username</i>';
+
         // Link reseller -> user terhubung ke reseller
         if (jenis === 'rsl') {
           if (resellerService.isReseller(pengundangId) && !resellerService.hasReferral(userId)) {
@@ -306,11 +362,27 @@ function register(bot) {
             if (r && r.sellerId && !sellerService.hasReferral(userId)) {
               sellerService.setReferral(userId, r.sellerId);
             }
+
+            // Notifikasi ke RESELLER
+            notifUndangan(ctx.telegram, pengundangId, {
+              peran: 'Reseller',
+              namaUser,
+              usernameUser,
+              userId,
+            });
           }
         } else {
           // Link seller (seller_ / aff_ lama)
           if (sellerService.isSeller(pengundangId) && !sellerService.hasReferral(userId)) {
             sellerService.setReferral(userId, pengundangId);
+
+            // Notifikasi ke SELLER
+            notifUndangan(ctx.telegram, pengundangId, {
+              peran: 'Seller',
+              namaUser,
+              usernameUser,
+              userId,
+            });
           }
         }
       }
