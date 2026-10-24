@@ -118,8 +118,10 @@ function buildCommands() {
   if (serviceToggle.isEnabled('ceknomor')) {
     layanan.push(
       `<b>/ceknomor</b> &lt;nomor&gt;`,
-      `Cek pemilik nomor HP, termasuk tanda spam atau mencurigakan.`,
+      `Lihat nama yang tersimpan untuk sebuah nomor HP, termasuk`,
+      `tanda spam atau mencurigakan.`,
       `<i>Contoh: /ceknomor 08123456789</i>`,
+      `<i>Sumber: GetContact (bukan data resmi pemerintahan)</i>`,
       ``
     );
   }
