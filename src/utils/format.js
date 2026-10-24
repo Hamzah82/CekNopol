@@ -149,92 +149,299 @@ function formatNomor(data) {
 
 
 /**
- * Format satu blok data KK (kepala keluarga + anggota) menjadi teks Telegram.
+ * Escape karakter HTML agar aman ditampilkan di Telegram.
+ * Wajib dipakai untuk SEMUA nilai yang berasal dari provider.
  *
- * @param {object} kk - Objek data KK (no_kk, jumlah_anggota, kepala_keluarga, anggota)
- * @param {string} [header] - Judul blok (mis. 'Data KK Terbaru')
- * @returns {string} Pesan terformat HTML
+ * @param {*} v
+ * @returns {string}
+ */
+function esc(v) {
+  return String(v === undefined || v === null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Ambil nilai field secara aman.
+ *
+ * Provider kadang memakai key dengan spasi di belakang (mis. "NIK_AYAH "),
+ * jadi pencocokan dilakukan dengan trim + case-insensitive.
+ *
+ * @param {object} obj
+ * @param {string[]} nama - kemungkinan nama field
+ * @returns {*} nilai pertama yang ditemukan, atau undefined
+ */
+function ambil(obj, nama) {
+  if (!obj || typeof obj !== 'object') return undefined;
+
+  // 1. Cocok persis
+  for (const n of nama) {
+    if (obj[n] !== undefined && obj[n] !== null && obj[n] !== '') return obj[n];
+  }
+
+  // 2. Cocok setelah trim & lowercase (toleran spasi/huruf besar-kecil)
+  const map = {};
+  for (const k of Object.keys(obj)) {
+    map[String(k).trim().toLowerCase()] = obj[k];
+  }
+  for (const n of nama) {
+    const v = map[String(n).trim().toLowerCase()];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+
+  return undefined;
+}
+
+/**
+ * Normalisasi jenis kelamin.
+ * Data terbaru memakai "M"/"F", data lama memakai "LAKI-LAKI"/"PEREMPUAN".
+ *
+ * @param {*} v
+ * @returns {string} 'L', 'P', atau '-'
+ */
+function normalJenisKelamin(v) {
+  if (v === undefined || v === null || v === '') return '-';
+  const t = String(v).trim().toUpperCase();
+  if (['M', 'L', 'LAKI-LAKI', 'LAKI LAKI', 'PRIA'].includes(t)) return 'L';
+  if (['F', 'P', 'PEREMPUAN', 'WANITA'].includes(t)) return 'P';
+  return String(v);
+}
+
+/**
+ * Format tanggal: ambil bagian YYYY-MM-DD saja (buang jam 00:00:00).
+ * @param {*} v
+ * @returns {string}
+ */
+function normalTanggal(v) {
+  if (v === undefined || v === null || v === '') return '-';
+  const t = String(v).trim();
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`; // DD-MM-YYYY
+  return t;
+}
+
+/**
+ * NIK/NKK sebagai string. Provider kadang mengirim sebagai angka.
+ * Konversi ke string agar presisi 16 digit terjaga.
+ *
+ * @param {*} v
+ * @returns {string}
+ */
+function normalNomor(v) {
+  if (v === undefined || v === null || v === '') return '-';
+  return String(v).trim();
+}
+
+/**
+ * Susun alamat dari beberapa bagian.
+ * @param {Array<*>} bagian
+ * @returns {string}
+ */
+function susunAlamat(bagian) {
+  return bagian
+    .map((x) => (x === undefined || x === null ? '' : String(x).trim()))
+    .filter((x) => x !== '')
+    .join(', ');
+}
+
+/**
+ * Format blok anggota (format KK TERBARU).
+ *
+ * @param {object} a - objek anggota
+ * @param {number} index - nomor urut
+ * @returns {string[]}
+ */
+function barisAnggota(a, index) {
+  const L = [];
+
+  const nama = ambil(a, ['NAMA_LENGKAP', 'nama']);
+  L.push(`<b>${index}. ${esc(nama || '-')}</b>`);
+  L.push(`NIK: ${esc(normalNomor(ambil(a, ['NIK', 'nik'])))}`);
+
+  const jk = normalJenisKelamin(ambil(a, ['JENIS_KELAMIN', 'jenis_kelamin']));
+  const lahir = normalTanggal(ambil(a, ['TANGGAL_LAHIR', 'tanggal_lahir']));
+  L.push(`JK: ${esc(jk)} | Lahir: ${esc(lahir)}`);
+
+  const tmpLahir = ambil(a, ['TEMPAT_LAHIR', 'tempat_lahir']);
+  if (tmpLahir) L.push(`Tempat Lahir: ${esc(tmpLahir)}`);
+
+  const hubungan = ambil(a, ['STATUS_HUBUNGAN_KELUARGA', 'status_hubungan_keluarga']);
+  if (hubungan) L.push(`Hubungan: ${esc(hubungan)}`);
+
+  const agama = ambil(a, ['AGAMA', 'agama']);
+  if (agama) L.push(`Agama: ${esc(agama)}`);
+
+  const darah = ambil(a, ['GOL_DARAH', 'gol_darah']);
+  if (darah && darah !== '-') L.push(`Gol. Darah: ${esc(darah)}`);
+
+  const didik = ambil(a, ['PENDIDIKAN', 'pendidikan']);
+  if (didik) L.push(`Pendidikan: ${esc(didik)}`);
+
+  const kerja = ambil(a, ['PEKERJAAN', 'pekerjaan']);
+  if (kerja) L.push(`Pekerjaan: ${esc(kerja)}`);
+
+  const kawin = ambil(a, ['STATUS_PERNIKAHAN', 'status_pernikahan']);
+  if (kawin) L.push(`Status Kawin: ${esc(kawin)}`);
+
+  const alamat = susunAlamat([
+    ambil(a, ['ALAMAT', 'alamat']),
+    ambil(a, ['RT', 'rt']) ? `RT ${ambil(a, ['RT', 'rt'])}` : '',
+    ambil(a, ['RW', 'rw']) ? `RW ${ambil(a, ['RW', 'rw'])}` : '',
+    ambil(a, ['KELURAHAN', 'kelurahan']),
+    ambil(a, ['KECAMATAN', 'kecamatan']),
+    ambil(a, ['KOTA', 'kota']),
+    ambil(a, ['PROVINSI', 'provinsi']),
+  ]);
+  if (alamat) L.push(`Alamat: ${esc(alamat)}`);
+
+  const namaIbu = ambil(a, ['NAMA_LGKP_IBU', 'nama_ibu']);
+  const namaAyah = ambil(a, ['NAMA_LGKP_AYAH', 'nama_ayah']);
+  if (namaIbu || namaAyah) {
+    L.push(`Orang Tua: ${esc(namaIbu || '-')} / ${esc(namaAyah || '-')}`);
+  }
+
+  return L;
+}
+
+/**
+ * Format satu blok data KK TERBARU (kepala keluarga + anggota).
+ *
+ * @param {object} kk - { no_kk, jumlah_anggota, kepala_keluarga, anggota }
+ * @param {string} [header]
+ * @returns {string}
  */
 function formatSatuKK(kk, header) {
-  const esc = (v) => String(v === undefined || v === null || v === '' ? '-' : v);
+  const L = [];
 
-  const lines = [];
+  if (header) L.push(header, '');
 
-  if (header) {
-    lines.push(header, '');
+  L.push(`<b>No. KK:</b> ${esc(normalNomor(ambil(kk, ['no_kk', 'nkk'])))}`);
+
+  const anggota = Array.isArray(kk.anggota) ? kk.anggota : [];
+  const kepala = amabilObjek(kk.kepala_keluarga);
+
+  const jumlah =
+    ambil(kk, ['jumlah_anggota']) !== undefined
+      ? ambil(kk, ['jumlah_anggota'])
+      : anggota.length + (kepala ? 1 : 0);
+  L.push(`<b>Jumlah anggota:</b> ${esc(jumlah)}`);
+
+  // ─── Kepala Keluarga ───
+  if (kepala) {
+    L.push('', '<b>👤 KEPALA KELUARGA</b>');
+    // barisAnggota() selalu memberi prefix nomor; untuk kepala keluarga
+    // nomornya dibuang dan judulnya dirapikan
+    L.push(
+      ...barisAnggota(kepala, 0).map((x, idx) => {
+        if (idx === 0) {
+          const nama = ambil(kepala, ['NAMA_LENGKAP', 'nama']) || '-';
+          return `<b>${esc(nama)}</b>`;
+        }
+        return x;
+      })
+    );
+  } else {
+    L.push('', '<i>Data kepala keluarga tidak tersedia.</i>');
   }
 
-  lines.push(`<b>No. KK:</b> ${esc(kk.no_kk)}`);
-
-  const kk_anggota = Array.isArray(kk.anggota) ? kk.anggota : [];
-  const jumlah = kk.jumlah_anggota !== undefined && kk.jumlah_anggota !== null
-    ? kk.jumlah_anggota
-    : kk_anggota.length + (kk.kepala_keluarga ? 1 : 0);
-  lines.push(`<b>Jumlah anggota:</b> ${esc(jumlah)}`);
-
-  // ─── Kepala Keluarga ───────────────────────────────────
-  const kk2 = kk.kepala_keluarga;
-  if (kk2 && typeof kk2 === 'object') {
-    lines.push('', '<b>👤 KEPALA KELUARGA</b>');
-    lines.push(`<b>Nama:</b> ${esc(kk2.NAMA_LENGKAP)}`);
-    lines.push(`<b>NIK:</b> ${esc(kk2.NIK)}`);
-    lines.push(`<b>JK:</b> ${esc(kk2.JENIS_KELAMIN)}`);
-    lines.push(`<b>Tempat Lahir:</b> ${esc(kk2.TEMPAT_LAHIR)}`);
-    lines.push(`<b>Tanggal Lahir:</b> ${esc(kk2.TANGGAL_LAHIR)}`);
-    lines.push(`<b>Agama:</b> ${esc(kk2.AGAMA)}`);
-    lines.push(`<b>Pekerjaan:</b> ${esc(kk2.PEKERJAAN)}`);
-    lines.push(`<b>Status:</b> ${esc(kk2.STATUS_PERNIKAHAN)}`);
-
-    const alamat = [kk2.KELURAHAN, kk2.KECAMATAN, kk2.KOTA, kk2.PROVINSI]
-      .filter(Boolean)
-      .join(', ');
-    if (alamat) lines.push(`<b>Alamat:</b> ${esc(alamat)}`);
-  }
-
-  // ─── Anggota ───────────────────────────────────────────
-  if (kk_anggota.length > 0) {
-    lines.push('', `<b>👥 ANGGOTA (${kk_anggota.length})</b>`);
+  // ─── Anggota ───
+  if (anggota.length > 0) {
+    L.push('', `<b>👥 ANGGOTA (${anggota.length})</b>`);
 
     const batas = 15;
-    const tampil = kk_anggota.slice(0, batas);
-
-    tampil.forEach((a, i) => {
-      lines.push('');
-      lines.push(`<b>${i + 1}. ${esc(a.NAMA_LENGKAP)}</b>`);
-      lines.push(`NIK: ${esc(a.NIK)}`);
-      lines.push(`JK: ${esc(a.JENIS_KELAMIN)} | Lahir: ${esc(a.TANGGAL_LAHIR)}`);
-      lines.push(`Hubungan: ${esc(a.STATUS_HUBUNGAN_KELUARGA)}`);
-      const alamatA = [a.KELURAHAN, a.KECAMATAN]
-        .filter(Boolean)
-        .join(', ');
-      if (alamatA) lines.push(`Alamat: ${esc(alamatA)}`);
+    anggota.slice(0, batas).forEach((a, i) => {
+      L.push('', ...barisAnggota(a, i + 1));
     });
 
-    if (kk_anggota.length > batas) {
-      lines.push('', `<i>...dan ${kk_anggota.length - batas} anggota lainnya</i>`);
+    if (anggota.length > batas) {
+      L.push('', `<i>...dan ${anggota.length - batas} anggota lainnya</i>`);
     }
   }
 
-  return lines.join('\n');
+  return L.join('\n');
+}
+
+/**
+ * Pastikan nilai adalah objek yang berisi (bukan null / array kosong).
+ * @param {*} v
+ * @returns {object|null}
+ */
+function amabilObjek(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  return Object.keys(v).length > 0 ? v : null;
+}
+
+/**
+ * Format satu entri data KK LAMA.
+ *
+ * Struktur data lama BERBEDA dari yang terbaru:
+ *   nkk, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin,
+ *   kawin, alamat, provinsi, kota, tipe_kota, kecamatan, rt, rw, status
+ *
+ * Data lama berisi SATU ORANG per entri, bukan satu keluarga.
+ *
+ * @param {object} d - satu entri kk_lama
+ * @param {string} [header]
+ * @returns {string}
+ */
+function formatKkLama(d, header) {
+  const L = [];
+
+  if (header) L.push(header, '');
+
+  L.push(`<b>Nama:</b> ${esc(ambil(d, ['nama', 'NAMA_LENGKAP']) || '-')}`);
+  L.push(`<b>NIK:</b> ${esc(normalNomor(ambil(d, ['nik', 'NIK'])))}`);
+  L.push(`<b>No. KK:</b> ${esc(normalNomor(ambil(d, ['nkk', 'no_kk'])))}`);
+
+  const jk = normalJenisKelamin(ambil(d, ['jenis_kelamin', 'JENIS_KELAMIN']));
+  const lahir = normalTanggal(ambil(d, ['tanggal_lahir', 'TANGGAL_LAHIR']));
+  L.push(`<b>JK:</b> ${esc(jk)}`);
+  L.push(`<b>Tanggal Lahir:</b> ${esc(lahir)}`);
+
+  const tmp = ambil(d, ['tempat_lahir', 'TEMPAT_LAHIR']);
+  if (tmp) L.push(`<b>Tempat Lahir:</b> ${esc(tmp)}`);
+
+  // Status kawin pada data lama berupa kode angka
+  const kawin = ambil(d, ['kawin', 'STATUS_PERNIKAHAN']);
+  if (kawin !== undefined) {
+    const labelKawin = { 1: 'BELUM KAWIN', 2: 'KAWIN', 3: 'CERAI HIDUP', 4: 'CERAI MATI' };
+    L.push(`<b>Status Kawin:</b> ${esc(labelKawin[String(kawin)] || kawin)}`);
+  }
+
+  const alamat = susunAlamat([
+    ambil(d, ['alamat']),
+    ambil(d, ['rt']) ? `RT ${ambil(d, ['rt'])}` : '',
+    ambil(d, ['rw']) ? `RW ${ambil(d, ['rw'])}` : '',
+    ambil(d, ['kecamatan']),
+    ambil(d, ['kota']),
+    ambil(d, ['provinsi']),
+  ]);
+  if (alamat) L.push(`<b>Alamat:</b> ${esc(alamat)}`);
+
+  const status = ambil(d, ['status']);
+  if (status) L.push(`<b>Status Data:</b> ${esc(status)}`);
+
+  return L.join('\n');
 }
 
 /**
  * Format hasil cek KK untuk ditampilkan ke user.
  *
  * Aturan:
- *   - Jika ada data KK terbaru -> hanya tampilkan data terbaru
- *   - Jika tidak ada         -> tampilkan data lama (maksimal 3 entri)
+ *   - Ada data KK terbaru -> HANYA tampilkan data terbaru
+ *   - Tidak ada          -> tampilkan data lama (maks 3 entri)
  *
  * @param {object} result - { kk_terbaru, kk_lama }
  * @param {object} [opts]
- * @param {string} [opts.cachedAt] - Waktu cache (untuk penanda)
- * @returns {string} Pesan terformat HTML
+ * @param {string} [opts.cachedAt]
+ * @returns {string}
  */
 function formatCekKK(result, opts = {}) {
   const terbaru = result && result.kk_terbaru;
   const lama = result && Array.isArray(result.kk_lama) ? result.kk_lama : [];
 
-  const hasTerbaru = terbaru && typeof terbaru === 'object' && Object.keys(terbaru).length > 0;
+  const hasTerbaru = amabilObjek(terbaru) !== null;
 
   let out = '';
 
@@ -242,14 +449,20 @@ function formatCekKK(result, opts = {}) {
     out = formatSatuKK(terbaru, '📋 <b>DATA KK TERBARU</b>');
   } else {
     const tampil = lama.slice(0, 3);
+
+    if (tampil.length === 0) {
+      return '❌ <b>Data KK tidak ditemukan.</b>';
+    }
+
     const bagian = tampil.map((k, i) => {
-      const judul = tampil.length > 1 ? `📋 <b>DATA KK LAMA #${i + 1}</b>` : '📋 <b>DATA KK LAMA</b>';
-      return formatSatuKK(k, judul);
+      const judul =
+        tampil.length > 1 ? `📋 <b>DATA KK LAMA #${i + 1}</b>` : '📋 <b>DATA KK LAMA</b>';
+      return formatKkLama(k, judul);
     });
 
     out =
       '⚠️ <b>Data KK terbaru tidak tersedia.</b>\n' +
-      '<i>Menampilkan data lama.</i>\n\n' +
+      '<i>Menampilkan data lama (per orang, bukan per keluarga).</i>\n\n' +
       bagian.join('\n\n' + '─'.repeat(21) + '\n\n');
 
     if (lama.length > tampil.length) {
