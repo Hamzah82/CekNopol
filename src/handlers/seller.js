@@ -510,8 +510,77 @@ function register(bot) {
       return;
     }
 
+    // ─── /seller list: dua fungsi (owner vs seller) ──────────
+    if (sub === 'list') {
+      if (isMainAdmin(userId)) {
+        // Owner: daftar SEMUA seller
+        const all = sellerService.getAllSellers();
+        if (!all.length) {
+          ctx.reply(formatSuccess('Belum ada seller.'), { parse_mode: 'HTML' });
+          return;
+        }
+
+        const hargaAdmin = orderService.getPricePerToken();
+        const lines = [`🏪 <b>DAFTAR SELLER</b>`, `─────────────────────`, ``];
+
+        all.forEach((s, i) => {
+          const hargaSeller = orderService.getPricePerToken(undefined, s.profitPerToken || 0);
+          lines.push(`<b>${i + 1}. <code>${s.userId}</code></b>`);
+          lines.push(`   Profit: ${rupiah(s.profitPerToken || 0)} / token`);
+          lines.push(`   Harga jual: ${rupiah(hargaSeller)} / token`);
+          lines.push(`   Saldo: ${rupiah(s.balance || 0)}`);
+          lines.push('');
+        });
+
+        lines.push(`─────────────────────`);
+        lines.push(`Total: <b>${all.length}</b> seller`);
+        lines.push(`<i>Harga dasar: ${rupiah(hargaAdmin)} / token</i>`);
+
+        ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Seller: daftar user yang DIA undang
+      const saya = sellerService.getSeller(userId);
+      if (!saya) {
+        ctx.reply(formatError('Hanya <b>owner</b> atau <b>seller</b>.'), { parse_mode: 'HTML' });
+        return;
+      }
+
+      const diundang = sellerService.getUsersInvitedBy(userId);
+      const resellers = require('../services/resellerService').getResellersOfSeller(userId);
+
+      const lines = [
+        `👥 <b>USER YANG KAMU UNDANG</b>`,
+        `─────────────────────`,
+        ``,
+      ];
+
+      if (!diundang.length) {
+        lines.push(`<i>Belum ada user yang masuk lewat link kamu.</i>`);
+        lines.push(``, `Bagikan link kamu: <code>/seller link</code>`);
+      } else {
+        diundang.forEach((u, i) => {
+          const jadiReseller = resellers.some((r) => Number(r.userId) === Number(u.userId));
+          const tanda = jadiReseller ? ' <i>(reseller)</i>' : '';
+          lines.push(`<b>${i + 1}. <code>${u.userId}</code></b>${tanda}`);
+          if (u.firstSeen) {
+            lines.push(`   📅 ${new Date(u.firstSeen).toLocaleDateString('id-ID')}`);
+          }
+          lines.push('');
+        });
+      }
+
+      lines.push(`─────────────────────`);
+      lines.push(`Total: <b>${diundang.length}</b> user`);
+      lines.push(`Dijadikan reseller: <b>${resellers.length}</b>`);
+
+      ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
+      return;
+    }
+
     // ─── Subcommand owner ───────────────────────────────────
-    if (['add', 'remove', 'list'].includes(sub)) {
+    if (['add', 'remove'].includes(sub)) {
       if (!isMainAdmin(userId)) {
         ctx.reply(formatError('Hanya <b>owner</b> yang bisa mengelola seller.'), {
           parse_mode: 'HTML',
@@ -562,32 +631,6 @@ function register(bot) {
         return;
       }
 
-      if (sub === 'list') {
-        const all = sellerService.getAllSellers();
-        if (!all.length) {
-          ctx.reply(formatSuccess('Belum ada seller.'), { parse_mode: 'HTML' });
-          return;
-        }
-
-        const hargaAdmin = orderService.getPricePerToken();
-        const lines = [`🏪 <b>DAFTAR SELLER</b>`, `─────────────────────`, ``];
-
-        all.forEach((s, i) => {
-          const hargaSeller = orderService.getPricePerToken(undefined, s.profitPerToken || 0);
-          lines.push(`<b>${i + 1}. <code>${s.userId}</code></b>`);
-          lines.push(`   Profit: ${rupiah(s.profitPerToken || 0)} / token`);
-          lines.push(`   Harga jual: ${rupiah(hargaSeller)} / token`);
-          lines.push(`   Saldo: ${rupiah(s.balance || 0)}`);
-          lines.push('');
-        });
-
-        lines.push(`─────────────────────`);
-        lines.push(`Total: <b>${all.length}</b> seller`);
-        lines.push(`<i>Harga dasar: ${rupiah(hargaAdmin)} / token</i>`);
-
-        ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
-        return;
-      }
     }
 
     ctx.reply(formatError('Subcommand tidak dikenal. Ketik <code>/seller</code> untuk bantuan.'), {

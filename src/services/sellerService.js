@@ -489,6 +489,34 @@ function getSellerShareForUser(userId, hargaDasarOwner, hargaUserSeller) {
   return Math.max(0, hargaKeReseller - dasar);
 }
 
+
+/**
+ * Daftar user yang diundang oleh seorang seller.
+ *
+ * Sumber: db/sellerrefs.json (user -> sellerId).
+ * Data user (firstSeen) diambil dari users.json bila tersedia.
+ *
+ * @param {number|string} sellerId
+ * @returns {Array<{userId: string, firstSeen: string|null}>}
+ */
+function getUsersInvitedBy(sellerId) {
+  const refs = readJson('sellerrefs.json', {});
+  const users = readJson('users.json', {});
+  const sid = String(sellerId);
+
+  return Object.entries(refs)
+    .filter(([, rec]) => String(rec && rec.sellerId) === sid)
+    .map(([userId, rec]) => ({
+      userId,
+      firstSeen: (users[userId] && users[userId].firstSeen) || (rec && rec.at) || null,
+    }))
+    .sort((a, b) => {
+      const ta = a.firstSeen ? new Date(a.firstSeen).getTime() : 0;
+      const tb = b.firstSeen ? new Date(b.firstSeen).getTime() : 0;
+      return ta - tb;
+    });
+}
+
 module.exports = {
   WALLETS,
   WALLET_LABELS,
@@ -515,6 +543,7 @@ module.exports = {
   hasReferral,
   getProfitForUser,
   getSellerShareForUser,
+  getUsersInvitedBy,
   // Withdrawal
   createWithdrawal,
   getWithdrawal,
