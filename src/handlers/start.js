@@ -82,20 +82,93 @@ function buildMainMenu(userId) {
  * @returns {string}
  */
 function buildCommands() {
-  return [
-    `📋 <b>DAFTAR COMMAND</b>`,
+  const L = [`📋 <b>DAFTAR COMMAND</b>`, ``];
+
+  // ─── Layanan Pencarian ───
+  const layanan = [];
+
+  if (serviceToggle.isEnabled('ceknopol')) {
+    layanan.push(
+      `<b>/ceknopol</b> &lt;plat&gt;`,
+      `Cek data kendaraan dari plat nomor — merk, tahun, warna,`,
+      `hingga nama pemilik.`,
+      `<i>Contoh: /ceknopol B1234XYZ</i>`,
+      ``
+    );
+  }
+
+  if (serviceToggle.isEnabled('ceknama')) {
+    layanan.push(
+      `<b>/ceknama</b> &lt;nama&gt;`,
+      `Cari data kependudukan berdasarkan nama orang.`,
+      `<i>Contoh: /ceknama BUDI SANTOSO</i>`,
+      ``
+    );
+  }
+
+  if (serviceToggle.isEnabled('nik2kk')) {
+    layanan.push(
+      `<b>/nik2kk</b> &lt;NIK&gt;`,
+      `Lacak nomor Kartu Keluarga dari NIK 16 digit.`,
+      `<i>Contoh: /nik2kk 1277031234560006</i>`,
+      ``
+    );
+  }
+
+  if (serviceToggle.isEnabled('ceknomor')) {
+    layanan.push(
+      `<b>/ceknomor</b> &lt;nomor&gt;`,
+      `Cek pemilik nomor HP, termasuk tanda spam atau mencurigakan.`,
+      `<i>Contoh: /ceknomor 08123456789</i>`,
+      ``
+    );
+  }
+
+  if (serviceToggle.isEnabled('cekkk')) {
+    layanan.push(
+      `<b>/cekKK</b> &lt;no. KK&gt;`,
+      `Tampilkan seluruh anggota satu Kartu Keluarga.`,
+      `<i>Contoh: /cekKK 1277031234560003</i>`,
+      ``
+    );
+  }
+
+  if (layanan.length) {
+    L.push(`<b>🔍 LAYANAN PENCARIAN</b>`, ``, ...layanan);
+  }
+
+  // ─── Token ───
+  L.push(
+    `<b>💰 TOKEN</b>`,
     ``,
-    `<b>🔍 Layanan Pencarian</b>`,
-    ...(serviceToggle.isEnabled('ceknopol') ? [`/ceknopol &lt;plat&gt; — data kendaraan`] : []),
-    ...(serviceToggle.isEnabled('ceknama') ? [`/ceknama &lt;nama&gt; — data kependudukan`] : []),
-    ...(serviceToggle.isEnabled('nik2kk') ? [`/nik2kk &lt;nik&gt; — NIK ke KK`] : []),
-    ...(serviceToggle.isEnabled('ceknomor') ? [`/ceknomor &lt;nomor&gt; — pemilik nomor HP`] : []),
-    ...(serviceToggle.isEnabled('cekkk') ? [`/cekKK &lt;noKK&gt; — data seluruh anggota keluarga`] : []),
+    `<b>/token</b>`,
+    `Lihat sisa token kamu.`,
     ``,
-    `<b>💰 Token</b>`,
-    `/token — cek sisa token kamu`,
-    `/buy &lt;jumlah&gt; — beli token via QRIS`,
-  ].join('\n');
+    `<b>/buy</b> &lt;jumlah&gt;`,
+    `Beli token lewat QRIS. Bot mengirim gambar QRIS beserta`,
+    `total yang harus dibayar, lalu kamu kirim foto bukti transfer.`,
+    `<i>Contoh: /buy 5</i>`,
+    ``,
+    `─────────────────────`,
+    `<b>💡 CATATAN</b>`,
+    ``
+  );
+
+  // Catatan khusus pengecekan hanya relevan bila ada layanan aktif
+  if (layanan.length) {
+    L.push(
+      `• Setiap pengecekan memotong token sesuai harga layanan`,
+      `• Token <b>tidak</b> terpotong jika data tidak ditemukan`,
+      `• Ada jeda 10 detik antar pengecekan untuk mencegah spam`,
+      `• Lihat biaya tiap layanan di tombol <b>💰 Harga</b>`
+    );
+  } else {
+    L.push(`• Layanan pencarian sedang tidak tersedia.`);
+  }
+
+  L.push(`• Butuh top-up? Kirim <code>/buy &lt;jumlah&gt;</code>`);
+
+  return L.join('\n');
 }
 
 /**
