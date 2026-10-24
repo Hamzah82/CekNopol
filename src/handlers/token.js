@@ -77,7 +77,7 @@ function parseListArgs(args) {
  * @param {Array<{userId: string, balance: number}>} allTokens - Semua data token
  * @param {number} page - Halaman yang diminta
  * @param {number} perPage - Item per halaman
- * @returns {string} Pesan terformat
+ * @returns {{text: string, keyboard: object|null}} Pesan + tombol navigasi
  */
 function formatTokenList(allTokens, page, perPage) {
   const totalUsers = allTokens.length;
@@ -115,12 +115,19 @@ function formatTokenList(allTokens, page, perPage) {
   lines.push(`📄 Halaman <b>${page}</b> / <b>${totalPages}</b>`);
   lines.push(`👥 Total user: <b>${totalUsers}</b> | 💰 Total token: <b>${totalTokens}</b>`);
 
+  // Tombol navigasi
+  const nav = [];
+  if (page > 1) {
+    nav.push({ text: '◀ Sebelumnya', callback_data: `tokpg:${page - 1}` });
+  }
   if (page < totalPages) {
-    lines.push(``);
-    lines.push(`➡️ Lanjut: <code>/token list ${page + 1}</code>`);
+    nav.push({ text: 'Berikutnya ▶', callback_data: `tokpg:${page + 1}` });
   }
 
-  return lines.join('\n');
+  return {
+    text: lines.join('\n'),
+    keyboard: nav.length ? { inline_keyboard: [nav] } : null,
+  };
 }
 
 /**
@@ -147,8 +154,10 @@ function register(bot) {
       if (listArgs) {
         const allTokens = tokenManager.getAllTokens();
         const perPage = 10;
-        const formatted = formatTokenList(allTokens, listArgs.page, perPage);
-        ctx.reply(formatted, { parse_mode: 'HTML' });
+        const { text, keyboard } = formatTokenList(allTokens, listArgs.page, perPage);
+        const opts = { parse_mode: 'HTML' };
+        if (keyboard) opts.reply_markup = keyboard;
+        ctx.reply(text, opts);
         return;
       }
 
@@ -198,6 +207,36 @@ function register(bot) {
     } else {
       ctx.reply(`💰 Sisa token kamu: <b>${balance}</b> token.`, { parse_mode: 'HTML' });
     }
+  });
+
+  // ─── Tombol navigasi halaman /token list ────────────────
+  bot.action(/^tokpg:/, async (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!isAdmin(userId)) {
+      await ctx.answerCbQuery('Khusus admin.', { show_alert: true });
+      return;
+    }
+
+    const data = (ctx.callbackQuery && ctx.callbackQuery.data) || '';
+    const halaman = parseInt(data.split(':')[1], 10) || 1;
+
+    const allTokens = tokenManager.getAllTokens();
+    const perPage = 10;
+    const { text, keyboard } = formatTokenList(allTokens, halaman, perPage);
+
+    const opts = { parse_mode: 'HTML' };
+    if (keyboard) opts.reply_markup = keyboard;
+
+    try {
+      await ctx.editMessageText(text, opts);
+    } catch (err) {
+      if (!/message is not modified/i.test(err.message || '')) {
+        console.error('[token] gagal edit halaman:', err.message);
+      }
+    }
+
+    await ctx.answerCbQuery().catch(() => {});
   });
 }
 

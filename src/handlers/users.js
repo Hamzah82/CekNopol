@@ -75,7 +75,7 @@ function shortDate(iso) {
  * @param {object} opts
  * @param {number} [opts.page]
  * @param {string} [opts.keyword]
- * @returns {string}
+ * @returns {{text: string, keyboard: object|null}}
  */
 function buildUserList({ page = 1, keyword = '' } = {}) {
   let users = userService.getAllUsers();
@@ -94,9 +94,12 @@ function buildUserList({ page = 1, keyword = '' } = {}) {
   const total = users.length;
 
   if (!total) {
-    return kw
-      ? `🔍 <b>HASIL PENCARIAN</b>\n\n<i>Tidak ada user yang cocok dengan "${escapeHtml(kw)}".</i>`
-      : `👥 <b>DAFTAR USER</b>\n\n<i>Belum ada user yang tercatat.</i>`;
+    return {
+      text: kw
+        ? `🔍 <b>HASIL PENCARIAN</b>\n\n<i>Tidak ada user yang cocok dengan "${escapeHtml(kw)}".</i>`
+        : `👥 <b>DAFTAR USER</b>\n\n<i>Belum ada user yang tercatat.</i>`,
+      keyboard: null,
+    };
   }
 
   const totalPages = Math.ceil(total / PER_PAGE) || 1;
@@ -138,11 +141,17 @@ function buildUserList({ page = 1, keyword = '' } = {}) {
   lines.push(`📄 Halaman <b>${p}</b> / <b>${totalPages}</b>`);
   lines.push(`👥 Total: <b>${total}</b> user | Dari seller: <b>${denganAff}</b>`);
 
-  if (p < totalPages) {
-    lines.push(``, `➡️ Lanjut: <code>/users ${p + 1}</code>`);
+  // Tombol navigasi (hanya untuk daftar tanpa pencarian)
+  const nav = [];
+  if (!kw) {
+    if (p > 1) nav.push({ text: '◀ Sebelumnya', callback_data: `usrpg:${p - 1}` });
+    if (p < totalPages) nav.push({ text: 'Berikutnya ▶', callback_data: `usrpg:${p + 1}` });
   }
 
-  return lines.join('\n');
+  return {
+    text: lines.join('\n'),
+    keyboard: nav.length ? { inline_keyboard: [nav] } : null,
+  };
 }
 
 /**
@@ -162,9 +171,16 @@ function register(bot) {
 
     const raw = ctx.message.text.replace(/^\/users(@\w+)?\s*/i, '').trim();
 
+    // Helper kirim
+    const kirim = (hasil) => {
+      const opts = { parse_mode: 'HTML' };
+      if (hasil.keyboard) opts.reply_markup = hasil.keyboard;
+      ctx.reply(hasil.text, opts);
+    };
+
     // Tanpa argumen -> halaman 1
     if (!raw) {
-      ctx.reply(buildUserList({ page: 1 }), { parse_mode: 'HTML' });
+      kirim(buildUserList({ page: 1 }));
       return;
     }
 
@@ -176,17 +192,45 @@ function register(bot) {
       const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
       if (n >= 1 && n <= totalPages) {
-        ctx.reply(buildUserList({ page: n }), { parse_mode: 'HTML' });
+        kirim(buildUserList({ page: n }));
         return;
       }
 
       // Di luar jangkauan halaman -> perlakukan sebagai pencarian ID
-      ctx.reply(buildUserList({ page: 1, keyword: raw }), { parse_mode: 'HTML' });
+      kirim(buildUserList({ page: 1, keyword: raw }));
       return;
     }
 
     // Selain angka -> pencarian
-    ctx.reply(buildUserList({ page: 1, keyword: raw }), { parse_mode: 'HTML' });
+    kirim(buildUserList({ page: 1, keyword: raw }));
+  });
+
+  // ─── Tombol navigasi halaman /users ─────────────────────
+  bot.action(/^usrpg:/, async (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!isAnyAdmin(userId)) {
+      await ctx.answerCbQuery('Khusus admin.', { show_alert: true });
+      return;
+    }
+
+    const data = (ctx.callbackQuery && ctx.callbackQuery.data) || '';
+    const halaman = parseInt(data.split(':')[1], 10) || 1;
+
+    const hasil = buildUserList({ page: halaman });
+
+    const opts = { parse_mode: 'HTML' };
+    if (hasil.keyboard) opts.reply_markup = hasil.keyboard;
+
+    try {
+      await ctx.editMessageText(hasil.text, opts);
+    } catch (err) {
+      if (!/message is not modified/i.test(err.message || '')) {
+        console.error('[users] gagal edit halaman:', err.message);
+      }
+    }
+
+    await ctx.answerCbQuery().catch(() => {});
   });
 }
 
