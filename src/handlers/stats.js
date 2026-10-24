@@ -176,33 +176,60 @@ function buildStats() {
     lines.push(`Token terjual: <b>${revAll.tokens}</b>`);
     lines.push(``, `<b>Status order</b>`);
     lines.push(`Diterima: ${revAll.diterima} | Ditolak: ${revAll.ditolak} | Pending: ${revAll.pending}`);
-
-    // ─── Kewajiban ke seller ───────────────────────────────
-    // Angka ini dihitung dari SALDO yang masih dipegang seller,
-    // bukan dari selisih order, karena saldo seller bisa berasal
-    // dari sumber lain (mis. penyesuaian manual).
-    const sellers = sellerService.getAllSellers();
-    const saldoSeller = sellers.reduce((a, s) => a + (Number(s.balance) || 0), 0);
-
-    const resellers = resellerService.getAllResellers();
-    const saldoReseller = resellers.reduce((a, r) => a + (Number(r.balance) || 0), 0);
-
-    const wds = Object.values(sellerService.readWithdrawals());
-    const menunggu = wds
-      .filter((w) => w.status === 'menunggu')
-      .reduce((a, w) => a + (Number(w.amount) || 0), 0);
-    const sudahDibayar = wds
-      .filter((w) => w.status === 'selesai')
-      .reduce((a, w) => a + (Number(w.amount) || 0), 0);
-
-    lines.push(``, `<b>🏪 KEWAJIBAN KE SELLER</b>`);
-    lines.push(`Total bagian seller: ${rupiah(revAll.sellerReward)}`);
-    lines.push(`Sudah dicairkan: ${rupiah(sudahDibayar)}`);
-    if (menunggu > 0) lines.push(`Menunggu diproses: ${rupiah(menunggu)}`);
-    lines.push(`<b>Saldo seller belum dicairkan: ${rupiah(saldoSeller)}</b>`);
-    lines.push(`<b>Saldo reseller belum dicairkan: ${rupiah(saldoReseller)}</b>`);
-    lines.push(`<i>Uang ini ada di tangan kamu, bukan milik kamu.</i>`);
   }
+
+    // ─── Kewajiban ke SELLER & RESELLER ────────────────────
+    //
+    // Angka dihitung dari SALDO yang masih dipegang seller/reseller,
+    // bukan dari selisih order, karena saldo bisa berasal dari sumber
+    // lain (mis. penyesuaian manual).
+    const hitungKewajiban = (daftar, wds) => {
+      const saldo = daftar.reduce((a, x) => a + (Number(x.balance) || 0), 0);
+      const menunggu = wds
+        .filter((w) => w.status === 'menunggu')
+        .reduce((a, w) => a + (Number(w.amount) || 0), 0);
+      const selesai = wds
+        .filter((w) => w.status === 'selesai')
+        .reduce((a, w) => a + (Number(w.amount) || 0), 0);
+      return { saldo, menunggu, selesai, jumlah: daftar.length };
+    };
+
+    const kewSeller = hitungKewajiban(
+      sellerService.getAllSellers(),
+      Object.values(sellerService.readWithdrawals())
+    );
+
+    const kewReseller = hitungKewajiban(
+      resellerService.getAllResellers(),
+      Object.values(resellerService.readWithdrawals())
+    );
+
+    const totalKewajiban = kewSeller.saldo + kewReseller.saldo;
+
+    // ── Seller ──
+    lines.push(``, `<b>🏪 KEWAJIBAN KE SELLER</b>`);
+    lines.push(`Seller terdaftar: ${kewSeller.jumlah}`);
+    lines.push(`Total bagian seller: ${rupiah(revAll.sellerReward)}`);
+    lines.push(`Sudah dicairkan: ${rupiah(kewSeller.selesai)}`);
+    if (kewSeller.menunggu > 0) {
+      lines.push(`Menunggu diproses: ${rupiah(kewSeller.menunggu)}`);
+    }
+    lines.push(`<b>Saldo belum dicairkan: ${rupiah(kewSeller.saldo)}</b>`);
+
+    // ── Reseller ──
+    lines.push(``, `<b>🏬 KEWAJIBAN KE RESELLER</b>`);
+    lines.push(`Reseller terdaftar: ${kewReseller.jumlah}`);
+    lines.push(`Total bagian reseller: ${rupiah(revAll.resellerReward)}`);
+    lines.push(`Sudah dicairkan: ${rupiah(kewReseller.selesai)}`);
+    if (kewReseller.menunggu > 0) {
+      lines.push(`Menunggu diproses: ${rupiah(kewReseller.menunggu)}`);
+    }
+    lines.push(`<b>Saldo belum dicairkan: ${rupiah(kewReseller.saldo)}</b>`);
+
+    // ── Gabungan ──
+    lines.push(``, `<b>💰 TOTAL KEWAJIBAN</b>`);
+    lines.push(`<b>${rupiah(totalKewajiban)}</b>`);
+    lines.push(`<i>Uang ini ada di tangan kamu, bukan milik kamu.</i>`);
 
   // Harga & profit saat ini (bukan akumulatif)
   lines.push(``, `─────────────────────`, `<b>🏷️ HARGA SAAT INI</b>`);
