@@ -167,6 +167,105 @@ async function sendToAdmins(bot, caption, photoFileId) {
   return sent;
 }
 
+/** Item per halaman pada daftar order */
+const PER_PAGE_ORDERS = 10;
+
+/** Label filter */
+const LABEL_FILTER = {
+  all: 'SEMUA ORDER',
+  pending: 'ORDER PENDING',
+  diterima: 'ORDER DITERIMA',
+  ditolak: 'ORDER DITOLAK',
+};
+
+/** Label status per order */
+const LABEL_STATUS = {
+  menunggu_bukti: '⏳ menunggu bukti',
+  menunggu_verifikasi: '🔍 menunggu verifikasi',
+  diterima: '✅ diterima',
+  ditolak: '❌ ditolak',
+};
+
+/**
+ * Susun teks daftar order.
+ *
+ * @param {string} filter
+ * @param {number} page
+ * @returns {{text: string, keyboard: object|null}}
+ */
+function buildOrderList(filter, page) {
+  const semua = orderService.getOrdersByFilter(filter);
+  const ringkas = orderService.summarizeOrders(semua);
+
+  if (!semua.length) {
+    return {
+      text: `📋 <b>${LABEL_FILTER[filter]}</b>\n\n<i>Tidak ada order.</i>`,
+      keyboard: null,
+    };
+  }
+
+  const totalPages = Math.ceil(semua.length / PER_PAGE_ORDERS) || 1;
+  let p = Math.floor(Number(page)) || 1;
+  if (p > totalPages) p = totalPages;
+  if (p < 1) p = 1;
+
+  const start = (p - 1) * PER_PAGE_ORDERS;
+  const items = semua.slice(start, start + PER_PAGE_ORDERS);
+
+  const L = [`📋 <b>${LABEL_FILTER[filter]}</b>`, `─────────────────────`, ``];
+
+  items.forEach((o, i) => {
+    const nomor = start + i + 1;
+    const status = LABEL_STATUS[o.status] || o.status;
+
+    L.push(`<b>${nomor}. <code>${o.id}</code></b> — ${status}`);
+    L.push(`   User: <code>${o.userId}</code>${o.username ? ` (@${o.username})` : ''}`);
+    L.push(`   ${o.amount} token | ${rupiah(o.total)}`);
+
+    const info = [];
+    if (o.sellerId) info.push(`Seller: <code>${o.sellerId}</code>`);
+    if (o.resellerId) info.push(`Reseller: <code>${o.resellerId}</code>`);
+    if (info.length) L.push(`   ${info.join(' | ')}`);
+
+    if (o.status === 'ditolak' && o.reason) {
+      L.push(`   <i>Alasan: ${escapeHtml(o.reason)}</i>`);
+    }
+
+    L.push('');
+  });
+
+  L.push(`─────────────────────`);
+  L.push(`📄 Halaman <b>${p}</b> / <b>${totalPages}</b>`);
+  L.push(`📦 Total ${ringkas.count} order | ${ringkas.tokens} token | ${rupiah(ringkas.total)}`);
+
+  const rows = [];
+  const nav = [];
+  if (p > 1) nav.push({ text: '◀ Sebelumnya', callback_data: `ord:${filter}:${p - 1}` });
+  if (p < totalPages) nav.push({ text: 'Berikutnya ▶', callback_data: `ord:${filter}:${p + 1}` });
+  if (nav.length) rows.push(nav);
+
+  return {
+    text: L.join('\n'),
+    keyboard: rows.length ? { inline_keyboard: rows } : null,
+  };
+}
+
+/**
+ * Kirim daftar order ke chat.
+ *
+ * @param {object} ctx
+ * @param {string} filter
+ * @param {number} page
+ */
+async function kirimDaftarOrder(ctx, filter, page) {
+  const { text, keyboard } = buildOrderList(filter, page);
+
+  const opts = { parse_mode: 'HTML', disable_web_page_preview: true };
+  if (keyboard) opts.reply_markup = keyboard;
+
+  await ctx.reply(text, opts);
+}
+
 /**
  * Register handler pembelian token
  * @param {import('telegraf').Telegraf} bot
@@ -176,6 +275,20 @@ function register(bot) {
   bot.command('buy', async (ctx) => {
     const userId = ctx.from.id;
     const raw = ctx.message.text.replace(/^\/buy(@\w+)?\s*/, '').trim();
+
+    // ─── Daftar order (main admin): /buy <filter> [halaman] ───
+    const kataPertama = (raw.split(/\s+/)[0] || '').toLowerCase();
+    if (['all', 'pending', 'diterima', 'ditolak'].includes(kataPertama)) {
+      if (!isMainAdmin(userId)) {
+        // Bukan owner -> diam, tanpa jejak
+        return;
+      }
+
+      const halaman = parseInt(String(raw.split(/\s+/)[1] || '1'), 10) || 1;
+      await kirimDaftarOrder(ctx, kataPertama, halaman);
+      return;
+    }
+
     const amount = parseInt(raw, 10);
 
     if (!raw || isNaN(amount) || amount <= 0) {
@@ -274,6 +387,37 @@ function register(bot) {
         `\n\n⚠️ <i>Gambar QRIS belum tersedia di server. Hubungi admin untuk detail pembayaran.</i>`,
       { parse_mode: 'HTML' }
     );
+  });
+
+  // ─── Navigasi halaman daftar order ──────────────────────
+  bot.action(/^ord:/, async (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!isMainAdmin(userId)) {
+      await ctx.answerCbQuery('Khusus admin.', { show_alert: true });
+      return;
+    }
+
+    const data = (ctx.callbackQuery && ctx.callbackQuery.data) || '';
+    const bagian = data.split(':'); // ord:<filter>:<halaman>
+    const filter = bagian[1] || 'all';
+    const halaman = parseInt(bagian[2], 10) || 1;
+
+    const { text, keyboard } = buildOrderList(filter, halaman);
+
+    const opts = { parse_mode: 'HTML', disable_web_page_preview: true };
+    if (keyboard) opts.reply_markup = keyboard;
+
+    try {
+      await ctx.editMessageText(text, opts);
+    } catch (err) {
+      // Halaman sama / pesan tidak berubah -> abaikan
+      if (!/message is not modified/i.test(err.message || '')) {
+        console.error('[buy] gagal edit daftar order:', err.message);
+      }
+    }
+
+    await ctx.answerCbQuery().catch(() => {});
   });
 
   // ─── Foto bukti transfer dari user ───────────────────────

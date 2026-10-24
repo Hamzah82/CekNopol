@@ -503,6 +503,47 @@ function setResellerReward(orderId, { resellerId, reward, profitPerToken }) {
   return order;
 }
 
+
+/** Pemetaan filter daftar order -> status yang termasuk */
+const ORDER_FILTERS = {
+  all: null, // semua status
+  pending: ['menunggu_bukti', 'menunggu_verifikasi'],
+  diterima: ['diterima'],
+  ditolak: ['ditolak'],
+};
+
+/**
+ * Ambil daftar order sesuai filter, terbaru lebih dulu.
+ *
+ * @param {string} filter - 'all' | 'pending' | 'diterima' | 'ditolak'
+ * @returns {Array<object>}
+ */
+function getOrdersByFilter(filter) {
+  const key = String(filter || 'all').toLowerCase();
+  const statuses = ORDER_FILTERS[key];
+
+  const all = Object.values(readOrders());
+
+  const hasil = statuses ? all.filter((o) => statuses.includes(o.status)) : all;
+
+  // Urutkan dari yang paling baru dibuat
+  return hasil.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+/**
+ * Hitung ringkasan nominal dari daftar order.
+ *
+ * @param {Array<object>} orders
+ * @returns {{count: number, tokens: number, total: number}}
+ */
+function summarizeOrders(orders) {
+  return {
+    count: orders.length,
+    tokens: orders.reduce((a, o) => a + (Number(o.amount) || 0), 0),
+    total: orders.reduce((a, o) => a + (Number(o.total) || 0), 0),
+  };
+}
+
 module.exports = {
   BASE_PRICE_PER_TOKEN,
   PRICE_PER_TOKEN,
@@ -525,4 +566,7 @@ module.exports = {
   setResellerReward,
   clearRejectedOrders,
   countRejectedOrders,
+  ORDER_FILTERS,
+  getOrdersByFilter,
+  summarizeOrders,
 };
