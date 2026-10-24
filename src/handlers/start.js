@@ -90,8 +90,9 @@ function buildCommands() {
   if (serviceToggle.isEnabled('ceknopol')) {
     layanan.push(
       `<b>/ceknopol</b> &lt;plat&gt;`,
-      `Cek data kendaraan dari plat nomor — merk, tahun, warna,`,
-      `hingga nama pemilik.`,
+      `Cek data kendaraan dari plat nomor — merk, tipe, tahun, warna,`,
+      `isi silinder, bahan bakar, hingga nama dan alamat pemilik.`,
+      `Termasuk <b>nomor rangka</b>, <b>nomor mesin</b>, dan nomor BPKB.`,
       `<i>Contoh: /ceknopol B1234XYZ</i>`,
       ``
     );
