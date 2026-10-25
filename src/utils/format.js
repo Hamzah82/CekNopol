@@ -3,43 +3,131 @@
  */
 
 /**
- * Format data kendaraan menjadi pesan Telegram yang rapi
+ * Format data kendaraan menjadi pesan Telegram yang rapi.
+ *
+ * Catatan struktur data:
+ *   - Sebagian field bisa kosong ("") -> ditampilkan '-'
+ *   - noHp kadang berisi 16 digit (tertukar dengan NIK oleh provider)
+ *   - tanggal berformat "YYYY-MM-DD HH:MM:SS.ffffff" -> dipotong
+ *   - pkbPokok/jumlahPajak berupa angka mentah -> diformat rupiah
+ *
  * @param {object} data - Data kendaraan dari API atau cache
  * @returns {string} Pesan terformat (HTML parse mode)
  */
 function formatKendaraan(data) {
-  const lines = [
-    `<b>🚗 Data Kendaraan</b>`,
-    ``,
-    `<b>Plat:</b> ${data.plat || '-'}`,
-    `<b>Merk:</b> ${data.merk || '-'}`,
-    `<b>Tipe:</b> ${data.tipe || '-'}`,
-    `<b>Tahun:</b> ${data.tahun || '-'}`,
-    `<b>Warna:</b> ${data.warna || '-'}`,
-    `<b>Warna TNKB:</b> ${data.warnaTnkb || '-'}`,
-    `<b>CC:</b> ${data.cc || '-'}`,
-    `<b>Jenis:</b> ${data.jenisKendaraan || '-'}`,
-    `<b>BBM:</b> ${data.bbm || '-'}`,
-    ``,
-    `<b>👤 Pemilik</b>`,
-    `<b>Nama:</b> ${data.nama || '-'}`,
-    `<b>Alamat:</b> ${data.alamat || '-'}`,
-    ``,
-    `<b>🔧 Identifikasi</b>`,
-    `<b>No. Rangka:</b> ${data.rangka || '-'}`,
-    `<b>No. Mesin:</b> ${data.mesin || '-'}`,
-    `<b>No. BPKB:</b> ${data.bpkb || '-'}`,
-    ``,
-    `<b>💰 Pajak</b>`,
-    `<b>Status:</b> ${data.statusPajak || '-'}`,
-    `<b>Tgl Exp:</b> ${data.tglPajakExp || '-'}`,
-  ];
+  const d = data || {};
 
-  if (data.cachedAt) {
-    lines.push(``, `<i>📦 Data dari cache (${new Date(data.cachedAt).toLocaleString('id-ID')})</i>`);
+  // ─── Helper ───
+  const esc = (v) =>
+    String(v === undefined || v === null ? '' : v)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+  /** Nilai bersih: kosong/spasi -> '-' */
+  const val = (v) => {
+    const t = v === undefined || v === null ? '' : String(v).trim();
+    return t === '' ? '-' : esc(t);
+  };
+
+  /** Apakah field punya isi */
+  const ada = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+
+  /** Tanggal -> DD-MM-YYYY (buang jam & mikrodetik) */
+  const tgl = (v) => {
+    if (!ada(v)) return '-';
+    const t = String(v).trim();
+    const m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : esc(t);
+  };
+
+  /** Angka -> Rp1.234.567 */
+  const rupiah = (v) => {
+    if (!ada(v)) return '-';
+    const n = Number(String(v).replace(/[^0-9]/g, ''));
+    if (!Number.isFinite(n) || n === 0) return '-';
+    return 'Rp' + n.toLocaleString('id-ID');
+  };
+
+  /** Baris opsional: hanya ditambahkan bila ada isi */
+  const opsional = (label, v, fmt) => {
+    if (!ada(v)) return;
+    L.push(`<b>${label}:</b> ${fmt ? fmt(v) : val(v)}`);
+  };
+
+  const L = [];
+
+  // ─── Kendaraan ───
+  L.push(`<b>🚗 DATA KENDARAAN</b>`, ``);
+  L.push(`<b>Plat:</b> ${val(d.plat)}`);
+  L.push(`<b>Merk:</b> ${val(d.merk)}`);
+  L.push(`<b>Tipe:</b> ${val(d.tipe)}`);
+  L.push(`<b>Tahun:</b> ${val(d.tahun)}`);
+  L.push(`<b>Warna:</b> ${val(d.warna)}`);
+  opsional('Warna TNKB', d.warnaTnkb);
+  opsional('CC', d.cc);
+  opsional('Jenis', d.jenisKendaraan);
+  opsional('BBM', d.bbm);
+  opsional('APM', d.apm);
+  opsional('Tgl Daftar', d.tglDaftar, tgl);
+
+  // ─── Pemilik ───
+  const adaPemilik = ada(d.nama) || ada(d.nik) || ada(d.alamat) || ada(d.noHp);
+  if (adaPemilik) {
+    L.push(``, `<b>👤 PEMILIK</b>`);
+    opsional('Nama', d.nama);
+    opsional('NIK', d.nik);
+    opsional('Pekerjaan', d.pekerjaan);
+    opsional('No. KK', d.noKK);
+
+    // noHp bisa berisi NIK (16 digit) karena provider kadang tertukar
+    if (ada(d.noHp)) {
+      const hp = String(d.noHp).trim();
+      const label = /^\d{16}$/.test(hp) ? 'No. HP <i>(format NIK)</i>' : 'No. HP';
+      L.push(`<b>${label}:</b> ${esc(hp)}`);
+    }
+
+    opsional('Alamat', d.alamat);
+    opsional('RT/RW', d.rtRw);
+    opsional('Kota', d.kota);
+    opsional('Provinsi', d.provinsi);
+    opsional('Polda', d.polda);
   }
 
-  return lines.join('\n');
+  // ─── Identifikasi ───
+  const adaId = ada(d.rangka) || ada(d.mesin) || ada(d.bpkb) || ada(d.stnk);
+  if (adaId) {
+    L.push(``, `<b>🔧 IDENTIFIKASI</b>`);
+    opsional('No. Rangka', d.rangka);
+    opsional('No. Mesin', d.mesin);
+    opsional('No. BPKB', d.bpkb);
+    opsional('No. STNK', d.stnk);
+    opsional('Sumbu', d.sumbu);
+    opsional('Roda', d.roda);
+  }
+
+  // ─── Pajak ───
+  const adaPajak =
+    ada(d.statusPajak) ||
+    ada(d.tglPajakExp) ||
+    ada(d.jumlahPajak) ||
+    ada(d.pkbPokok) ||
+    ada(d.tglBayarPajak);
+  if (adaPajak) {
+    L.push(``, `<b>💰 PAJAK</b>`);
+    opsional('Status', d.statusPajak);
+    opsional('Berlaku s/d', d.tglPajakExp, tgl);
+    opsional('Masa STNK', d.tglStnk, tgl);
+    opsional('PKB Pokok', d.pkbPokok, rupiah);
+    opsional('Jumlah Pajak', d.jumlahPajak, rupiah);
+    opsional('Tgl Bayar', d.tglBayarPajak, tgl);
+  }
+
+  if (d.cachedAt) {
+    L.push(``, `<i>📦 Data dari cache (${new Date(d.cachedAt).toLocaleString('id-ID')})</i>`);
+  }
+
+  return L.join('\n');
 }
 
 /**
