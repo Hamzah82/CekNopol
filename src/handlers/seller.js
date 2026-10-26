@@ -77,12 +77,24 @@ function buildRefLink(userId) {
  * @param {number} params.sellerProfitPerToken - profit seller per token pada order
  * @returns {{sellerId: number, earned: number, profitPerToken: number}|null}
  */
-function rewardSeller({ userId, amount, sellerProfitPerToken }) {
-  const sellerId = sellerService.getReferrer(userId);
+function rewardSeller({ userId, amount, sellerProfitPerToken, sellerId: sellerIdTerkunci }) {
+  // Utamakan sellerId yang TERKUNCI di order. Bila seller sudah dihapus,
+  // kita tetap perlu tahu siapa pemilik bagian ini agar tidak hilang diam-diam.
+  const sellerId = sellerIdTerkunci || sellerService.getReferrer(userId);
   if (!sellerId) return null;
 
   const seller = sellerService.getSeller(sellerId);
-  if (!seller) return null;
+  if (!seller) {
+    // Seller sudah dihapus -> kembalikan bagian tanpa menambah saldo
+    // agar pemanggil bisa mencatatnya sebagai kewajiban manual.
+    const perTokenHilang = Math.max(0, Math.floor(Number(sellerProfitPerToken) || 0));
+    return {
+      sellerId: Number(sellerId),
+      earned: perTokenHilang * Math.max(0, Number(amount) || 0),
+      profitPerToken: perTokenHilang,
+      hilang: true,
+    };
+  }
 
   const perToken = Math.max(0, Math.floor(Number(sellerProfitPerToken) || 0));
   const earned = perToken * Math.max(0, Number(amount) || 0);

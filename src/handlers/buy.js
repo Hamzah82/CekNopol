@@ -646,7 +646,11 @@ function register(bot) {
       await handleVerification(ctx, 'diterima');
     } catch (err) {
       console.error('[buy] error saat /terima:', err.message);
-      ctx.reply('⚠️ Terjadi kesalahan saat memproses. Cek log server.').catch(() => {});
+      try {
+        await ctx.reply('⚠️ Terjadi kesalahan saat memproses. Cek log server.');
+      } catch (_) {
+        /* abaikan: gagal kirim pemberitahuan bukan masalah kritis */
+      }
     }
   });
 
@@ -656,7 +660,11 @@ function register(bot) {
       await handleVerification(ctx, 'ditolak');
     } catch (err) {
       console.error('[buy] error saat /tolak:', err.message);
-      ctx.reply('⚠️ Terjadi kesalahan saat memproses. Cek log server.').catch(() => {});
+      try {
+        await ctx.reply('⚠️ Terjadi kesalahan saat memproses. Cek log server.');
+      } catch (_) {
+        /* abaikan: gagal kirim pemberitahuan bukan masalah kritis */
+      }
     }
   });
 }
@@ -721,6 +729,7 @@ async function handleVerification(ctx, action) {
         userId: target.userId,
         amount: target.amount,
         sellerProfitPerToken: target.sellerProfitPerToken,
+        sellerId: target.sellerId,
       });
       if (sellerReward && sellerReward.sellerId && sellerReward.earned > 0) {
         orderService.setSellerReward(target.id, {
@@ -740,6 +749,7 @@ async function handleVerification(ctx, action) {
         userId: target.userId,
         amount: target.amount,
         resellerProfitPerToken: target.resellerProfitPerToken,
+        resellerId: target.resellerId,
       });
       if (resellerReward && resellerReward.resellerId && resellerReward.earned > 0) {
         orderService.setResellerReward(target.id, {
@@ -764,6 +774,14 @@ async function handleVerification(ctx, action) {
           : '') +
         (resellerReward && resellerReward.resellerId
           ? `🏬 <b>Reseller:</b> <code>${resellerReward.resellerId}</code> — ${rupiah(resellerReward.earned)}\n`
+          : '') +
+        (sellerReward && sellerReward.hilang
+          ? `\n⚠️ <i>Seller <code>${sellerReward.sellerId}</code> sudah tidak terdaftar — ` +
+            `bagian ${rupiah(sellerReward.earned)} TIDAK masuk ke siapa pun.</i>\n`
+          : '') +
+        (resellerReward && resellerReward.hilang
+          ? `\n⚠️ <i>Reseller <code>${resellerReward.resellerId}</code> sudah tidak terdaftar — ` +
+            `bagian ${rupiah(resellerReward.earned)} TIDAK masuk ke siapa pun.</i>\n`
           : '') +
         `─────────────────────\n` +
         `<b>Saldo kamu (admin):</b> ${adminBalanceBefore} → <b>${adminBalanceAfter}</b> token` +
@@ -807,7 +825,7 @@ async function handleVerification(ctx, action) {
     }
 
     // 2) Seller
-    if (sellerReward && sellerReward.sellerId) {
+    if (sellerReward && sellerReward.sellerId && !sellerReward.hilang) {
       try {
         const sellerData = sellerService.getSeller(sellerReward.sellerId);
         const saldoSeller = (sellerData && sellerData.balance) || 0;
@@ -831,7 +849,7 @@ async function handleVerification(ctx, action) {
     }
 
     // 3) Reseller
-    if (resellerReward && resellerReward.resellerId) {
+    if (resellerReward && resellerReward.resellerId && !resellerReward.hilang) {
       try {
         const rData = resellerService.getReseller(resellerReward.resellerId);
         const saldoReseller = (rData && rData.balance) || 0;

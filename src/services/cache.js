@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const jsonStore = require('./jsonStore');
 
 let dbPath = './db';
 
@@ -14,18 +15,21 @@ function setDbPath(basePath) {
 }
 
 function readJsonFile(filename) {
+  const filePath = path.join(dbPath, filename);
   try {
-    const filePath = path.join(dbPath, filename);
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, '{}', 'utf-8');
+      jsonStore.tulisJsonSync(filePath, {});
       return {};
     }
     const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw);
+    if (!raw.trim()) return {};
+    const data = JSON.parse(raw);
+    return data && typeof data === 'object' ? data : {};
   } catch (err) {
-    console.error(`[cache] Error membaca ${filename}:`, err.message);
-    const filePath = path.join(dbPath, filename);
-    fs.writeFileSync(filePath, '{}', 'utf-8');
+    // JANGAN menimpa file saat gagal baca. Bisa jadi file sedang ditulis
+    // proses lain atau rusak sementara — menimpanya berarti kehilangan
+    // seluruh cache secara permanen. Cukup laporkan dan pakai objek kosong.
+    console.error(`[cache] Gagal membaca ${filename}:`, err.message);
     return {};
   }
 }
@@ -33,7 +37,8 @@ function readJsonFile(filename) {
 function writeJsonFile(filename, data) {
   try {
     const filePath = path.join(dbPath, filename);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    // Tulis atomik agar cache tidak korup bila proses mati di tengah
+    jsonStore.tulisJsonSync(filePath, data);
   } catch (err) {
     console.error(`[cache] Error menulis ${filename}:`, err.message);
   }

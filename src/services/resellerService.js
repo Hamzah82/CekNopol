@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const jsonStore = require('./jsonStore');
 
 const WALLETS = ['shopeepay', 'gopay', 'bank jago', 'seabank'];
 const WALLET_LABELS = {
@@ -51,7 +52,8 @@ function readJson(filename, fallback = {}) {
 
 function writeJson(filename, data) {
   try {
-    fs.writeFileSync(path.join(dbPath, filename), JSON.stringify(data, null, 2), 'utf-8');
+    // Tulis atomik: cegah file korup & dua penulisan saling menimpa
+    jsonStore.tulisJsonSync(path.join(dbPath, filename), data);
   } catch (err) {
     console.error(`[resellerService] Error menulis ${filename}:`, err.message);
   }

@@ -30,6 +30,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const jsonStore = require('./jsonStore');
 
 /** Harga dasar per token (sebelum ditambah profit admin) */
 const BASE_PRICE_PER_TOKEN = 2000;
@@ -90,7 +91,7 @@ function readSettings() {
  */
 function writeSettings(settings) {
   try {
-    fs.writeFileSync(getSettingsFile(), JSON.stringify(settings, null, 2), 'utf-8');
+    jsonStore.tulisJsonSync(getSettingsFile(), settings);
   } catch (err) {
     console.error('[orderService] Error menulis settings.json:', err.message);
   }
@@ -213,7 +214,9 @@ function readOrders() {
  */
 function writeOrders(data) {
   try {
-    fs.writeFileSync(getOrdersFile(), JSON.stringify(data, null, 2), 'utf-8');
+    // Tulis atomik agar orders.json tidak korup bila proses mati
+    // di tengah penulisan atau ada dua penulisan bersamaan.
+    jsonStore.tulisJsonSync(getOrdersFile(), data);
   } catch (err) {
     console.error('[orderService] Error menulis orders.json:', err.message);
   }

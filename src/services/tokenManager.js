@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const jsonStore = require('./jsonStore');
 
 let dbPath = './db';
 
@@ -27,17 +28,21 @@ function getTokensFilePath() {
  * @returns {object} Map userId -> jumlah token
  */
 function readTokens() {
+  const filePath = getTokensFilePath();
   try {
-    const filePath = getTokensFilePath();
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, '{}', 'utf-8');
+      jsonStore.tulisJsonSync(filePath, {});
       return {};
     }
     const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw);
+    if (!raw.trim()) return {};
+    const data = JSON.parse(raw);
+    return data && typeof data === 'object' ? data : {};
   } catch (err) {
-    console.error('[tokenManager] Error membaca tokens.json:', err.message);
-    fs.writeFileSync(getTokensFilePath(), '{}', 'utf-8');
+    // JANGAN menimpa tokens.json saat gagal baca — file ini berisi SALDO
+    // seluruh user. Menimpanya berarti semua saldo hilang permanen.
+    console.error('[tokenManager] Gagal membaca tokens.json:', err.message);
+    console.error('[tokenManager] File TIDAK ditimpa demi keamanan saldo.');
     return {};
   }
 }
@@ -48,7 +53,9 @@ function readTokens() {
  */
 function writeTokens(data) {
   try {
-    fs.writeFileSync(getTokensFilePath(), JSON.stringify(data, null, 2), 'utf-8');
+    // Tulis atomik: hindari file terpotong bila proses mati di tengah,
+    // dan cegah dua penulisan bersamaan saling menimpa.
+    jsonStore.tulisJsonSync(getTokensFilePath(), data);
   } catch (err) {
     console.error('[tokenManager] Error menulis tokens.json:', err.message);
   }

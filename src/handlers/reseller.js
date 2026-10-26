@@ -90,12 +90,21 @@ function hitungHargaJualReseller(reseller) {
 /**
  * Bagikan profit reseller saat order diterima
  */
-function rewardReseller({ userId, amount, resellerProfitPerToken }) {
-  const resellerId = resellerService.getResellerIdForUser(userId);
+function rewardReseller({ userId, amount, resellerProfitPerToken, resellerId: resellerIdTerkunci }) {
+  // Utamakan resellerId yang TERKUNCI di order.
+  const resellerId = resellerIdTerkunci || resellerService.getResellerIdForUser(userId);
   if (!resellerId) return null;
 
   const r = resellerService.getReseller(resellerId);
-  if (!r) return null;
+  if (!r) {
+    const perTokenHilang = Math.max(0, Math.floor(Number(resellerProfitPerToken) || 0));
+    return {
+      resellerId: Number(resellerId),
+      earned: perTokenHilang * Math.max(0, Number(amount) || 0),
+      profitPerToken: perTokenHilang,
+      hilang: true,
+    };
+  }
 
   const perToken = Math.max(0, Math.floor(Number(resellerProfitPerToken) || 0));
   const earned = perToken * Math.max(0, Number(amount) || 0);

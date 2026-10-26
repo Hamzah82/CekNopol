@@ -16,6 +16,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const jsonStore = require('./jsonStore');
 
 let dbPath = './db';
 
@@ -57,7 +58,7 @@ function readUsers() {
  */
 function writeUsers(data) {
   try {
-    fs.writeFileSync(getUsersFile(), JSON.stringify(data, null, 2), 'utf-8');
+    jsonStore.tulisJsonSync(getUsersFile(), data);
   } catch (err) {
     console.error('[userService] Error menulis users.json:', err.message);
   }

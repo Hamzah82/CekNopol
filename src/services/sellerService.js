@@ -20,6 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const jsonStore = require('./jsonStore');
 
 /** Wallet yang didukung untuk penarikan */
 const WALLETS = ['shopeepay', 'gopay', 'bank jago', 'seabank'];
@@ -61,7 +62,8 @@ function readJson(filename, fallback = {}) {
 
 function writeJson(filename, data) {
   try {
-    fs.writeFileSync(path.join(dbPath, filename), JSON.stringify(data, null, 2), 'utf-8');
+    // Tulis atomik: cegah file korup & dua penulisan saling menimpa
+    jsonStore.tulisJsonSync(path.join(dbPath, filename), data);
   } catch (err) {
     console.error(`[sellerService] Error menulis ${filename}:`, err.message);
   }

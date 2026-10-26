@@ -118,9 +118,15 @@ function createBot(config) {
   expireService.mulaiPembersih(bot);
 
   // Error handling global
-  bot.catch((err, ctx) => {
+  bot.catch(async (err, ctx) => {
     console.error(`[bot] Error untuk update ${ctx.updateType}:`, err);
-    ctx.reply('⚠️ Terjadi kesalahan internal. Coba lagi nanti.').catch(() => {});
+
+    // ctx.reply() tidak selalu mengembalikan Promise -> jangan pakai .catch()
+    try {
+      await ctx.reply('⚠️ Terjadi kesalahan internal. Coba lagi nanti.');
+    } catch (_) {
+      /* abaikan: gagal memberi tahu user bukan masalah kritis */
+    }
   });
 
   return bot;
