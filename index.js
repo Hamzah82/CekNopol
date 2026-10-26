@@ -38,6 +38,61 @@ try {
   process.exit(1);
 }
 
+// ─── Validasi konfigurasi wajib ──────────────────────────────
+const masalah = [];
+const peringatan = [];
+
+if (!config.botToken || typeof config.botToken !== 'string') {
+  masalah.push('botToken kosong atau bukan teks');
+}
+
+if (!config.apiUrl || typeof config.apiUrl !== 'string') {
+  masalah.push('apiUrl kosong (API layanan tidak bisa dihubungi)');
+}
+
+if (!config.apiKey || typeof config.apiKey !== 'string') {
+  masalah.push('apiKey kosong (permintaan ke API akan ditolak)');
+}
+
+// adminIds: harus ada minimal satu
+if (!Array.isArray(config.adminIds) || config.adminIds.length === 0) {
+  masalah.push(
+    'adminIds kosong — tidak ada yang bisa menjalankan /terima, /setprofit, /adminmenu'
+  );
+} else {
+  const tidakValid = config.adminIds.filter((id) => !Number.isFinite(Number(id)));
+  if (tidakValid.length) {
+    masalah.push(`adminIds berisi nilai bukan angka: ${tidakValid.join(', ')}`);
+  }
+}
+
+// botUsername: dipakai untuk link referral seller/reseller
+if (!config.botUsername || typeof config.botUsername !== 'string') {
+  peringatan.push(
+    'botUsername kosong — link referral (/seller link, /reseller link) tidak bisa dibuat'
+  );
+} else if (config.botUsername.startsWith('@')) {
+  peringatan.push(
+    `botUsername sebaiknya TANPA tanda @ (sekarang: "${config.botUsername}")`
+  );
+}
+
+if (masalah.length) {
+  console.error('');
+  console.error('❌ KONFIGURASI setup.json BERMASALAH:');
+  masalah.forEach((m, i) => console.error(`   ${i + 1}. ${m}`));
+  console.error('');
+  console.error('Perbaiki setup.json lalu jalankan ulang bot.');
+  process.exit(1);
+}
+
+if (peringatan.length) {
+  console.warn('');
+  console.warn('⚠️  PERINGATAN KONFIGURASI:');
+  peringatan.forEach((m, i) => console.warn(`   ${i + 1}. ${m}`));
+  console.warn('');
+}
+
 // ─── Pastikan folder db ada ──────────────────────────────────
 const dbPath = config.dbPath || './db';
 if (!fs.existsSync(dbPath)) {
@@ -46,7 +101,7 @@ if (!fs.existsSync(dbPath)) {
 }
 
 // Pastikan file JSON default ada
-const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.json', 'reseller.json', 'orders.json', 'settings.json', 'prices.json', 'loggroup.json', 'stats.json', 'kk.json', 'affiliators.json', 'referrals.json', 'withdrawals.json', 'users.json', 'sellers.json', 'sellerrefs.json', 'sellerwds.json', 'resellers.json', 'resellerrefs.json', 'resellerwds.json', 'services.json'];
+const dbFiles = ['plat.json', 'tokens.json', 'admins.json', 'nama.json', 'admin.json', 'reseller.json', 'orders.json', 'settings.json', 'prices.json', 'loggroup.json', 'stats.json', 'kk.json', 'users.json', 'sellers.json', 'sellerrefs.json', 'sellerwds.json', 'resellers.json', 'resellerrefs.json', 'resellerwds.json', 'services.json'];
 for (const file of dbFiles) {
   const filePath = path.join(dbPath, file);
   if (!fs.existsSync(filePath)) {
@@ -105,10 +160,12 @@ bot.launch()
 // Graceful shutdown
 process.once('SIGINT', () => {
   console.log('\n🛑 Menghentikan bot...');
+  require('./src/services/expireService').hentikanPembersih();
   bot.stop('SIGINT');
 });
 
 process.once('SIGTERM', () => {
   console.log('\n🛑 Menghentikan bot...');
+  require('./src/services/expireService').hentikanPembersih();
   bot.stop('SIGTERM');
 });

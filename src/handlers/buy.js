@@ -176,6 +176,7 @@ const LABEL_FILTER = {
   pending: 'ORDER PENDING',
   diterima: 'ORDER DITERIMA',
   ditolak: 'ORDER DITOLAK',
+  kedaluwarsa: 'ORDER KEDALUWARSA',
 };
 
 /** Label status per order */
@@ -184,6 +185,7 @@ const LABEL_STATUS = {
   menunggu_verifikasi: '🔍 menunggu verifikasi',
   diterima: '✅ diterima',
   ditolak: '❌ ditolak',
+  kedaluwarsa: '⏰ kedaluwarsa',
 };
 
 /**
@@ -278,7 +280,7 @@ function register(bot) {
 
     // ─── Daftar order (main admin): /buy <filter> [halaman] ───
     const kataPertama = (raw.split(/\s+/)[0] || '').toLowerCase();
-    if (['all', 'pending', 'diterima', 'ditolak'].includes(kataPertama)) {
+    if (['all', 'pending', 'diterima', 'ditolak', 'kedaluwarsa'].includes(kataPertama)) {
       if (!isMainAdmin(userId)) {
         // Bukan owner -> diam, tanpa jejak
         return;

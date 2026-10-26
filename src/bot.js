@@ -34,6 +34,7 @@ const statsService = require('./services/statsService');
 const sellerService = require('./services/sellerService');
 const resellerService = require('./services/resellerService');
 const serviceToggle = require('./services/serviceToggle');
+const expireService = require('./services/expireService');
 const userService = require('./services/userService');
 
 /**
@@ -112,6 +113,9 @@ function createBot(config) {
   backupHandler.register(bot);
   usersHandler.register(bot);
   broadcastHandler.register(bot);
+
+  // Pembersih order kedaluwarsa
+  expireService.mulaiPembersih(bot);
 
   // Error handling global
   bot.catch((err, ctx) => {

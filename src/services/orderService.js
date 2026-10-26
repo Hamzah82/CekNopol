@@ -537,6 +537,7 @@ const ORDER_FILTERS = {
   pending: ['menunggu_bukti', 'menunggu_verifikasi'],
   diterima: ['diterima'],
   ditolak: ['ditolak'],
+  kedaluwarsa: ['kedaluwarsa'],
 };
 
 /**
@@ -571,6 +572,62 @@ function summarizeOrders(orders) {
   };
 }
 
+
+/** Batas waktu order menggantung sebelum kedaluwarsa (jam) */
+const ORDER_EXPIRE_HOURS = 24;
+
+/**
+ * Ambil order yang sudah kedaluwarsa.
+ *
+ * Order dianggap kedaluwarsa bila masih berstatus menunggu
+ * (menunggu_bukti / menunggu_verifikasi) dan umurnya melewati batas.
+ *
+ * @param {number} [jam] - batas umur (default ORDER_EXPIRE_HOURS)
+ * @returns {Array<object>}
+ */
+function getExpiredOrders(jam) {
+  const batas = (Number(jam) || ORDER_EXPIRE_HOURS) * 60 * 60 * 1000;
+  const sekarang = Date.now();
+
+  return Object.values(readOrders()).filter((o) => {
+    if (!o || (o.status !== 'menunggu_bukti' && o.status !== 'menunggu_verifikasi')) {
+      return false;
+    }
+    const dibuat = new Date(o.createdAt).getTime();
+    if (!Number.isFinite(dibuat)) return false;
+    return sekarang - dibuat >= batas;
+  });
+}
+
+/**
+ * Tandai order kedaluwarsa sebagai 'kedaluwarsa'.
+ *
+ * Dipisah dari getExpiredOrders() agar pemanggil bisa mengirim
+ * notifikasi ke user lebih dulu, baru memanggil ini.
+ *
+ * @param {string[]} orderIds
+ * @returns {number} jumlah order yang ditandai
+ */
+function markExpired(orderIds) {
+  const orders = readOrders();
+  let n = 0;
+
+  for (const id of orderIds) {
+    const o = orders[id];
+    if (!o) continue;
+    if (o.status !== 'menunggu_bukti' && o.status !== 'menunggu_verifikasi') continue;
+
+    o.status = 'kedaluwarsa';
+    o.reason = 'Melewati batas waktu pembayaran';
+    o.updatedAt = new Date().toISOString();
+    orders[id] = o;
+    n++;
+  }
+
+  if (n > 0) writeOrders(orders);
+  return n;
+}
+
 module.exports = {
   BASE_PRICE_PER_TOKEN,
   PRICE_PER_TOKEN,
@@ -595,6 +652,9 @@ module.exports = {
   setResellerReward,
   clearRejectedOrders,
   countRejectedOrders,
+  ORDER_EXPIRE_HOURS,
+  getExpiredOrders,
+  markExpired,
   ORDER_FILTERS,
   getOrdersByFilter,
   summarizeOrders,
