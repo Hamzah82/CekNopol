@@ -94,6 +94,71 @@ function rewardSeller({ userId, amount, sellerProfitPerToken }) {
   return { sellerId, earned, profitPerToken: perToken };
 }
 
+/** Item per halaman daftar undangan seller */
+const PER_PAGE_INVITED = 10;
+
+/**
+ * Susun daftar user yang diundang seorang seller, dengan paginasi.
+ *
+ * @param {number} sellerId
+ * @param {number} page
+ * @returns {{text: string, keyboard: object|null}}
+ */
+function buildInvitedList(sellerId, page) {
+  const resellerService = require('../services/resellerService');
+
+  const diundang = sellerService.getUsersInvitedBy(sellerId);
+  const resellers = resellerService.getResellersOfSeller(sellerId);
+
+  if (!diundang.length) {
+    return {
+      text:
+        `👥 <b>USER YANG KAMU UNDANG</b>\n` +
+        `─────────────────────\n\n` +
+        `<i>Belum ada user yang masuk lewat link kamu.</i>\n\n` +
+        `Bagikan link kamu: <code>/seller link</code>`,
+      keyboard: null,
+    };
+  }
+
+  const totalPages = Math.ceil(diundang.length / PER_PAGE_INVITED) || 1;
+  let p = Math.floor(Number(page)) || 1;
+  if (p > totalPages) p = totalPages;
+  if (p < 1) p = 1;
+
+  const start = (p - 1) * PER_PAGE_INVITED;
+  const items = diundang.slice(start, start + PER_PAGE_INVITED);
+
+  const L = [`👥 <b>USER YANG KAMU UNDANG</b>`, `─────────────────────`, ``];
+
+  items.forEach((u, i) => {
+    const nomor = start + i + 1;
+    const jadiReseller = resellers.some((r) => Number(r.userId) === Number(u.userId));
+    const tanda = jadiReseller ? ' <i>(reseller)</i>' : '';
+
+    L.push(`<b>${nomor}. <code>${u.userId}</code></b>${tanda}`);
+    if (u.firstSeen) {
+      L.push(`   📅 ${new Date(u.firstSeen).toLocaleDateString('id-ID')}`);
+    }
+    L.push('');
+  });
+
+  L.push(`─────────────────────`);
+  L.push(`📄 Halaman <b>${p}</b> / <b>${totalPages}</b>`);
+  L.push(`👥 Total: <b>${diundang.length}</b> user`);
+  L.push(`Dijadikan reseller: <b>${resellers.length}</b>`);
+
+  // Tombol navigasi
+  const nav = [];
+  if (p > 1) nav.push({ text: '◀ Sebelumnya', callback_data: `slpg:${p - 1}` });
+  if (p < totalPages) nav.push({ text: 'Berikutnya ▶', callback_data: `slpg:${p + 1}` });
+
+  return {
+    text: L.join('\n'),
+    keyboard: nav.length ? { inline_keyboard: [nav] } : null,
+  };
+}
+
 /**
  * Register handler /seller & /selesai
  * @param {import('telegraf').Telegraf} bot
@@ -547,35 +612,13 @@ function register(bot) {
         return;
       }
 
-      const diundang = sellerService.getUsersInvitedBy(userId);
-      const resellers = require('../services/resellerService').getResellersOfSeller(userId);
+      const halaman = parseInt(String(parts[1] || '1'), 10) || 1;
+      const hasil = buildInvitedList(userId, halaman);
 
-      const lines = [
-        `👥 <b>USER YANG KAMU UNDANG</b>`,
-        `─────────────────────`,
-        ``,
-      ];
+      const opts = { parse_mode: 'HTML' };
+      if (hasil.keyboard) opts.reply_markup = hasil.keyboard;
 
-      if (!diundang.length) {
-        lines.push(`<i>Belum ada user yang masuk lewat link kamu.</i>`);
-        lines.push(``, `Bagikan link kamu: <code>/seller link</code>`);
-      } else {
-        diundang.forEach((u, i) => {
-          const jadiReseller = resellers.some((r) => Number(r.userId) === Number(u.userId));
-          const tanda = jadiReseller ? ' <i>(reseller)</i>' : '';
-          lines.push(`<b>${i + 1}. <code>${u.userId}</code></b>${tanda}`);
-          if (u.firstSeen) {
-            lines.push(`   📅 ${new Date(u.firstSeen).toLocaleDateString('id-ID')}`);
-          }
-          lines.push('');
-        });
-      }
-
-      lines.push(`─────────────────────`);
-      lines.push(`Total: <b>${diundang.length}</b> user`);
-      lines.push(`Dijadikan reseller: <b>${resellers.length}</b>`);
-
-      ctx.reply(lines.join('\n'), { parse_mode: 'HTML' });
+      ctx.reply(hasil.text, opts);
       return;
     }
 
@@ -869,6 +912,34 @@ function register(bot) {
       ),
       { parse_mode: 'HTML' }
     );
+  });
+
+  // ─── Navigasi halaman daftar undangan seller ────────────
+  bot.action(/^slpg:/, async (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!sellerService.isSeller(userId)) {
+      await ctx.answerCbQuery('Khusus seller.', { show_alert: true });
+      return;
+    }
+
+    const data = (ctx.callbackQuery && ctx.callbackQuery.data) || '';
+    const halaman = parseInt(data.split(':')[1], 10) || 1;
+
+    const hasil = buildInvitedList(userId, halaman);
+
+    const opts = { parse_mode: 'HTML' };
+    if (hasil.keyboard) opts.reply_markup = hasil.keyboard;
+
+    try {
+      await ctx.editMessageText(hasil.text, opts);
+    } catch (err) {
+      if (!/message is not modified/i.test(err.message || '')) {
+        console.error('[seller] gagal edit daftar undangan:', err.message);
+      }
+    }
+
+    await ctx.answerCbQuery().catch(() => {});
   });
 
   // ─── /selesai (reply notifikasi penarikan seller) ────────
