@@ -639,13 +639,23 @@ function register(bot) {
   });
 
   // ─── /terima (reply foto bukti) ──────────────────────────
-  bot.command('terima', (ctx) => {
-    handleVerification(ctx, 'diterima');
+  bot.command('terima', async (ctx) => {
+    try {
+      await handleVerification(ctx, 'diterima');
+    } catch (err) {
+      console.error('[buy] error saat /terima:', err.message);
+      ctx.reply('⚠️ Terjadi kesalahan saat memproses. Cek log server.').catch(() => {});
+    }
   });
 
   // ─── /tolak <alasan> (reply foto bukti) ──────────────────
-  bot.command('tolak', (ctx) => {
-    handleVerification(ctx, 'ditolak');
+  bot.command('tolak', async (ctx) => {
+    try {
+      await handleVerification(ctx, 'ditolak');
+    } catch (err) {
+      console.error('[buy] error saat /tolak:', err.message);
+      ctx.reply('⚠️ Terjadi kesalahan saat memproses. Cek log server.').catch(() => {});
+    }
   });
 }
 
@@ -759,7 +769,15 @@ async function handleVerification(ctx, action) {
       { parse_mode: 'HTML' }
     );
 
-    // Notifikasi ke user
+    // ─── Notifikasi ke pembeli, seller, & reseller ──────────
+    //
+    // Masing-masing dijalankan dalam try/catch SENDIRI agar kegagalan
+    // satu pihak tidak menggagalkan notifikasi pihak lain.
+    // Sebelumnya semuanya berada dalam satu try, sehingga bila notifikasi
+    // ke pembeli gagal (mis. diblokir), notifikasi seller & reseller
+    // ikut tidak terkirim.
+
+    // 1) Pembeli
     try {
       await ctx.telegram.sendMessage(
         target.userId,
@@ -771,47 +789,69 @@ async function handleVerification(ctx, action) {
           `Terima kasih sudah berbelanja! 🐢`,
         { parse_mode: 'HTML' }
       );
-      // Notifikasi ke reseller (bila ada)
-      if (resellerReward && resellerReward.resellerId && resellerReward.earned > 0) {
-        try {
-          const rData = resellerService.getReseller(resellerReward.resellerId);
-          await ctx.telegram.sendMessage(
-            resellerReward.resellerId,
-            `🏬 <b>Penjualan Token</b>\n\n` +
-              `<b>Order ID:</b> <code>${target.id}</code>\n` +
-              `<b>Token terjual:</b> ${target.amount}\n` +
-              `<b>Bagian kamu:</b> <b>${rupiah(resellerReward.earned)}</b>\n` +
-              `<b>Saldo sekarang:</b> ${rupiah((rData && rData.balance) || 0)}\n\n` +
-              `<i>Cek saldo: <code>/reseller saldo</code></i>`,
-            { parse_mode: 'HTML' }
-          );
-        } catch (err) {
-          console.error(`[buy] gagal notifikasi reseller ${resellerReward.resellerId}:`, err.message);
-        }
-      }
-
-      // Notifikasi ke seller (bila ada)
-      if (sellerReward && sellerReward.sellerId && sellerReward.earned > 0) {
-        try {
-          const sellerData = sellerService.getSeller(sellerReward.sellerId);
-          await ctx.telegram.sendMessage(
-            sellerReward.sellerId,
-            `🏪 <b>Penjualan Token</b>\n\n` +
-              `<b>Order ID:</b> <code>${target.id}</code>\n` +
-              `<b>Token terjual:</b> ${target.amount}\n` +
-              `<b>Bagian kamu:</b> <b>${rupiah(sellerReward.earned)}</b>\n` +
-              `<b>Saldo sekarang:</b> ${rupiah((sellerData && sellerData.balance) || 0)}\n\n` +
-              `<i>Cek saldo: <code>/seller saldo</code></i>`,
-            { parse_mode: 'HTML' }
-          );
-        } catch (err) {
-          console.error(`[buy] gagal notifikasi seller ${sellerReward.sellerId}:`, err.message);
-        }
-      }
     } catch (err) {
-      console.error(`[buy] Gagal notifikasi user ${target.userId}:`, err.message);
-      ctx.reply(`⚠️ Token sudah ditambahkan, tapi gagal mengirim notifikasi ke user (mungkin bot diblokir).`);
+      console.error(`[buy] gagal notifikasi pembeli ${target.userId}:`, err.message);
+
+      // ctx.reply() tidak selalu mengembalikan Promise, jadi jangan
+      // dirantai .catch(). Bungkus dengan try agar aman.
+      try {
+        await ctx.reply(
+          `⚠️ Token sudah ditambahkan, tapi notifikasi ke pembeli gagal terkirim ` +
+            `(mungkin dia memblokir bot).`
+        );
+      } catch (e) {
+        console.error('[buy] gagal kirim pemberitahuan ke admin:', e.message);
+      }
     }
+
+    // 2) Seller
+    if (sellerReward && sellerReward.sellerId) {
+      try {
+        const sellerData = sellerService.getSeller(sellerReward.sellerId);
+        const saldoSeller = (sellerData && sellerData.balance) || 0;
+
+        await ctx.telegram.sendMessage(
+          sellerReward.sellerId,
+          `🏪 <b>Penjualan Token</b>\n\n` +
+            `<b>Order ID:</b> <code>${target.id}</code>\n` +
+            `<b>Token terjual:</b> ${target.amount}\n` +
+            `<b>Bagian kamu:</b> <b>${rupiah(sellerReward.earned)}</b>\n` +
+            `<b>Saldo sekarang:</b> ${rupiah(saldoSeller)}\n` +
+            (sellerReward.earned > 0
+              ? ''
+              : `\n⚠️ <i>Profit kamu masih Rp0. Atur lewat</i> <code>/seller setprofit</code>\n`) +
+            `\n<i>Cek saldo: <code>/seller saldo</code></i>`,
+          { parse_mode: 'HTML' }
+        );
+      } catch (err) {
+        console.error(`[buy] gagal notifikasi seller ${sellerReward.sellerId}:`, err.message);
+      }
+    }
+
+    // 3) Reseller
+    if (resellerReward && resellerReward.resellerId) {
+      try {
+        const rData = resellerService.getReseller(resellerReward.resellerId);
+        const saldoReseller = (rData && rData.balance) || 0;
+
+        await ctx.telegram.sendMessage(
+          resellerReward.resellerId,
+          `🏬 <b>Penjualan Token</b>\n\n` +
+            `<b>Order ID:</b> <code>${target.id}</code>\n` +
+            `<b>Token terjual:</b> ${target.amount}\n` +
+            `<b>Bagian kamu:</b> <b>${rupiah(resellerReward.earned)}</b>\n` +
+            `<b>Saldo sekarang:</b> ${rupiah(saldoReseller)}\n` +
+            (resellerReward.earned > 0
+              ? ''
+              : `\n⚠️ <i>Profit kamu masih Rp0. Atur lewat</i> <code>/reseller setprofit</code>\n`) +
+            `\n<i>Cek saldo: <code>/reseller saldo</code></i>`,
+          { parse_mode: 'HTML' }
+        );
+      } catch (err) {
+        console.error(`[buy] gagal notifikasi reseller ${resellerReward.resellerId}:`, err.message);
+      }
+    }
+
     return;
   }
 

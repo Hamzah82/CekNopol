@@ -380,11 +380,43 @@ function notifUndangan(telegram, penerimaId, { peran, namaUser, usernameUser, us
     `<i>Lihat daftar: ${peran === 'Reseller' ? '/reseller link' : '/seller link'}</i>`,
   ].join('\n');
 
-  Promise.resolve(telegram.sendMessage(penerimaId, teks, { parse_mode: 'HTML' })).catch(
-    (err) => {
-      console.error(`[start] gagal notif undangan ke ${penerimaId}:`, err.message);
+  return kirimDenganRetry(telegram, penerimaId, teks, 'notif undangan');
+}
+
+/**
+ * Kirim pesan dengan 1x percobaan ulang bila gagal.
+ *
+ * Kegagalan sementara (mis. gangguan jaringan) sering berhasil pada
+ * percobaan kedua. Kegagalan permanen (user memblokir bot) akan tetap
+ * gagal dan hanya dicatat di log.
+ *
+ * @param {object} telegram - ctx.telegram
+ * @param {number} chatId
+ * @param {string} teks
+ * @param {string} label - untuk keperluan log
+ * @returns {Promise<boolean>} true bila terkirim
+ */
+async function kirimDenganRetry(telegram, chatId, teks, label) {
+  const opsi = { parse_mode: 'HTML' };
+
+  for (let percobaan = 1; percobaan <= 2; percobaan++) {
+    try {
+      await telegram.sendMessage(chatId, teks, opsi);
+      return true;
+    } catch (err) {
+      const terakhir = percobaan === 2;
+      console.error(
+        `[start] gagal ${label} ke ${chatId} (percobaan ${percobaan})${terakhir ? '' : ', mencoba lagi'}:`,
+        err.message
+      );
+      if (terakhir) return false;
+
+      // jeda singkat sebelum mencoba lagi
+      await new Promise((r) => setTimeout(r, 800));
     }
-  );
+  }
+
+  return false;
 }
 
 /**
@@ -442,7 +474,7 @@ function register(bot) {
             }
 
             // Notifikasi ke RESELLER
-            notifUndangan(ctx.telegram, pengundangId, {
+            await notifUndangan(ctx.telegram, pengundangId, {
               peran: 'Reseller',
               namaUser,
               usernameUser,
@@ -455,7 +487,7 @@ function register(bot) {
             sellerService.setReferral(userId, pengundangId);
 
             // Notifikasi ke SELLER
-            notifUndangan(ctx.telegram, pengundangId, {
+            await notifUndangan(ctx.telegram, pengundangId, {
               peran: 'Seller',
               namaUser,
               usernameUser,
