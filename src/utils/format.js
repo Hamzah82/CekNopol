@@ -437,14 +437,10 @@ function formatSatuKK(kk, header) {
   if (anggota.length > 0) {
     L.push('', `<b>👥 ANGGOTA (${anggota.length})</b>`);
 
-    const batas = 15;
-    anggota.slice(0, batas).forEach((a, i) => {
+    // Semua anggota ditampilkan tanpa batas
+    anggota.forEach((a, i) => {
       L.push('', ...barisAnggota(a, i + 1));
     });
-
-    if (anggota.length > batas) {
-      L.push('', `<i>...dan ${anggota.length - batas} anggota lainnya</i>`);
-    }
   }
 
   return L.join('\n');
@@ -461,54 +457,58 @@ function amabilObjek(v) {
 }
 
 /**
- * Format satu entri data KK LAMA.
+ * Format data dari kk_lama.
  *
- * Struktur data lama BERBEDA dari yang terbaru:
- *   nkk, nik, nama, tempat_lahir, tanggal_lahir, jenis_kelamin,
- *   kawin, alamat, provinsi, kota, tipe_kota, kecamatan, rt, rw, status
+ * PENTING: kk_lama adalah ARRAY PER ANGGOTA keluarga (bukan per KK).
+ * Semua entri berasal dari satu nomor KK yang sama, jadi disusun
+ * menyerupai tampilan KK pada umumnya: No. KK lalu daftar anggota.
  *
- * Data lama berisi SATU ORANG per entri, bukan satu keluarga.
- *
- * @param {object} d - satu entri kk_lama
- * @param {string} [header]
+ * @param {Array<object>} anggota - isi kk_lama
  * @returns {string}
  */
-function formatKkLama(d, header) {
-  const L = [];
-
-  if (header) L.push(header, '');
-
-  L.push(`<b>Nama:</b> ${esc(ambil(d, ['nama', 'NAMA_LENGKAP']) || '-')}`);
-  L.push(`<b>NIK:</b> ${esc(normalNomor(ambil(d, ['nik', 'NIK'])))}`);
-  L.push(`<b>No. KK:</b> ${esc(normalNomor(ambil(d, ['nkk', 'no_kk'])))}`);
-
-  const jk = normalJenisKelamin(ambil(d, ['jenis_kelamin', 'JENIS_KELAMIN']));
-  const lahir = normalTanggal(ambil(d, ['tanggal_lahir', 'TANGGAL_LAHIR']));
-  L.push(`<b>JK:</b> ${esc(jk)}`);
-  L.push(`<b>Tanggal Lahir:</b> ${esc(lahir)}`);
-
-  const tmp = ambil(d, ['tempat_lahir', 'TEMPAT_LAHIR']);
-  if (tmp) L.push(`<b>Tempat Lahir:</b> ${esc(tmp)}`);
-
-  // Status kawin pada data lama berupa kode angka
-  const kawin = ambil(d, ['kawin', 'STATUS_PERNIKAHAN']);
-  if (kawin !== undefined) {
-    const labelKawin = { 1: 'BELUM KAWIN', 2: 'KAWIN', 3: 'CERAI HIDUP', 4: 'CERAI MATI' };
-    L.push(`<b>Status Kawin:</b> ${esc(labelKawin[String(kawin)] || kawin)}`);
+function formatDariLama(anggota) {
+  if (!Array.isArray(anggota) || anggota.length === 0) {
+    return '❌ <b>Data KK tidak ditemukan.</b>';
   }
 
-  const alamat = susunAlamat([
-    ambil(d, ['alamat']),
-    ambil(d, ['rt']) ? `RT ${ambil(d, ['rt'])}` : '',
-    ambil(d, ['rw']) ? `RW ${ambil(d, ['rw'])}` : '',
-    ambil(d, ['kecamatan']),
-    ambil(d, ['kota']),
-    ambil(d, ['provinsi']),
-  ]);
-  if (alamat) L.push(`<b>Alamat:</b> ${esc(alamat)}`);
+  const L = [];
 
-  const status = ambil(d, ['status']);
-  if (status) L.push(`<b>Status Data:</b> ${esc(status)}`);
+  // Nomor KK dari entri pertama (semua sama)
+  const nokk = normalNomor(ambil(anggota[0], ['nkk', 'no_kk']));
+
+  L.push(`<b>No. KK:</b> ${esc(nokk)}`);
+  L.push(`<b>Jumlah anggota:</b> ${anggota.length}`);
+  L.push('', `<b>👥 ANGGOTA (${anggota.length})</b>`);
+
+  anggota.forEach((a, i) => {
+    L.push('');
+    L.push(`<b>${i + 1}. ${esc(ambil(a, ['nama', 'NAMA_LENGKAP']) || '-')}</b>`);
+    L.push(`NIK: ${esc(normalNomor(ambil(a, ['nik', 'NIK'])))}`);
+
+    const jk = normalJenisKelamin(ambil(a, ['jenis_kelamin', 'JENIS_KELAMIN']));
+    const lahir = normalTanggal(ambil(a, ['tanggal_lahir', 'TANGGAL_LAHIR']));
+    L.push(`JK: ${esc(jk)} | Lahir: ${esc(lahir)}`);
+
+    const tmp = ambil(a, ['tempat_lahir', 'TEMPAT_LAHIR']);
+    if (tmp) L.push(`Tempat Lahir: ${esc(tmp)}`);
+
+    // Status kawin pada data ini berupa kode angka
+    const kawin = ambil(a, ['kawin', 'STATUS_PERNIKAHAN']);
+    if (kawin !== undefined) {
+      const label = { 1: 'BELUM KAWIN', 2: 'KAWIN', 3: 'CERAI HIDUP', 4: 'CERAI MATI' };
+      L.push(`Status Kawin: ${esc(label[String(kawin)] || kawin)}`);
+    }
+
+    const alamat = susunAlamat([
+      ambil(a, ['alamat']),
+      ambil(a, ['rt']) ? `RT ${ambil(a, ['rt'])}` : '',
+      ambil(a, ['rw']) ? `RW ${ambil(a, ['rw'])}` : '',
+      ambil(a, ['kecamatan']),
+      ambil(a, ['kota']),
+      ambil(a, ['provinsi']),
+    ]);
+    if (alamat) L.push(`Alamat: ${esc(alamat)}`);
+  });
 
   return L.join('\n');
 }
@@ -516,9 +516,8 @@ function formatKkLama(d, header) {
 /**
  * Format hasil cek KK untuk ditampilkan ke user.
  *
- * Aturan:
- *   - Ada data KK terbaru -> HANYA tampilkan data terbaru
- *   - Tidak ada          -> tampilkan data lama (maks 3 entri)
+ * Tampilan SERAGAM — user tidak diberi tahu apakah datanya baru atau lama.
+ * Seluruh anggota ditampilkan tanpa batas.
  *
  * @param {object} result - { kk_terbaru, kk_lama }
  * @param {object} [opts]
@@ -531,31 +530,14 @@ function formatCekKK(result, opts = {}) {
 
   const hasTerbaru = amabilObjek(terbaru) !== null;
 
-  let out = '';
+  let out;
 
   if (hasTerbaru) {
-    out = formatSatuKK(terbaru, '📋 <b>DATA KK TERBARU</b>');
+    out = formatSatuKK(terbaru);
+  } else if (lama.length > 0) {
+    out = formatDariLama(lama);
   } else {
-    const tampil = lama.slice(0, 3);
-
-    if (tampil.length === 0) {
-      return '❌ <b>Data KK tidak ditemukan.</b>';
-    }
-
-    const bagian = tampil.map((k, i) => {
-      const judul =
-        tampil.length > 1 ? `📋 <b>DATA KK LAMA #${i + 1}</b>` : '📋 <b>DATA KK LAMA</b>';
-      return formatKkLama(k, judul);
-    });
-
-    out =
-      '⚠️ <b>Data KK terbaru tidak tersedia.</b>\n' +
-      '<i>Menampilkan data lama (per orang, bukan per keluarga).</i>\n\n' +
-      bagian.join('\n\n' + '─'.repeat(21) + '\n\n');
-
-    if (lama.length > tampil.length) {
-      out += `\n\n<i>...dan ${lama.length - tampil.length} data lama lainnya tidak ditampilkan.</i>`;
-    }
+    return '❌ <b>Data KK tidak ditemukan.</b>';
   }
 
   if (opts.cachedAt) {
