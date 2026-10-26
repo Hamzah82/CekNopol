@@ -209,7 +209,7 @@ async function cekNik2kk(nik) {
   }
 }
 
-module.exports = { initApi, cekNopol, cekNama, cekNik2kk };/**
+/**
  * Cek data nomor HP via API eksternal (GetContact)
  * @param {string} nomor - Nomor HP (format 08xx atau +628xx)
  * @returns {Promise<{success: boolean, data: object|null, error: string|null}>}

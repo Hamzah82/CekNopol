@@ -199,7 +199,7 @@ function formatNik2kk(data) {
   return lines.join('\n');
 }
 
-module.exports = { formatKendaraan, formatNama, formatNik2kk, formatError, formatSuccess };/**
+/**
  * Format data nomor HP (GetContact) menjadi pesan Telegram
  * @param {object} data - Data dari API getcontact
  * @returns {string} Pesan terformat (HTML parse mode)
