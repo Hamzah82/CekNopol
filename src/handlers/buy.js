@@ -458,6 +458,29 @@ function register(bot) {
         `<i>Token akan otomatis ditambahkan setelah admin menyetujui.</i>`,
       { parse_mode: 'HTML' }
     );
+
+    // ─── Bubble AFK (dikirim terpisah, jeda 2 detik) ───
+    // Dikirim sebagai pesan baru, bukan digabung, supaya user sempat
+    // membaca konfirmasi bukti lebih dulu.
+    try {
+      const st = orderService.getAfk();
+      if (st.afk) {
+        await new Promise((r) => setTimeout(r, 2000));
+
+        await ctx.reply(
+          `🌙 <b>Admin sedang AFK</b>\n\n` +
+            `<b>Alasan:</b> ${escapeHtml(st.afkReason || 'tidak disebutkan')}\n\n` +
+            `Pembelian kamu <b>tetap aman dan sudah tercatat</b>. Hanya saja ` +
+            `verifikasinya mungkin agak lebih lama dari biasanya.\n\n` +
+            `Tidak perlu mengirim ulang bukti transfer ya. Begitu admin kembali, ` +
+            `pesananmu langsung diproses dan token otomatis masuk.\n\n` +
+            `<i>Terima kasih sudah bersabar 🙏</i>`,
+          { parse_mode: 'HTML' }
+        );
+      }
+    } catch (err) {
+      console.error('[buy] gagal kirim pesan AFK:', err.message);
+    }
   });
 
   // ─── Pesan selain foto → batalkan order ──────────────────
@@ -488,6 +511,76 @@ function register(bot) {
         `<b>Total:</b> ${rupiah(order.total)}\n\n` +
         `Kamu mengirim pesan selain <b>foto bukti transfer</b>, sehingga order otomatis dibatalkan.\n\n` +
         `Silakan buat order baru dengan <code>/buy &lt;jumlah&gt;</code>, lalu kirim <b>foto</b> bukti transfer.`,
+      { parse_mode: 'HTML' }
+    );
+  });
+
+  // ─── /afk on <alasan> | /afk off (main admin) ───────────
+  bot.command('afk', (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!isMainAdmin(userId)) {
+      return; // bukan owner -> diam total
+    }
+
+    const raw = ctx.message.text.replace(/^\/afk(@\w+)?\s*/i, '').trim();
+    const parts = raw ? raw.split(/\s+/) : [];
+    const aksi = (parts[0] || '').toLowerCase();
+
+    // /afk (tanpa argumen) -> lihat status
+    if (!aksi) {
+      const st = orderService.getAfk();
+      ctx.reply(
+        st.afk
+          ? `🌙 <b>Status: AFK</b>\n\n<b>Alasan:</b> ${escapeHtml(st.afkReason || '-')}\n\n` +
+              `<i>Matikan dengan</i> <code>/afk off</code>`
+          : `☀️ <b>Status: AKTIF</b>\n\n` +
+              `<i>Aktifkan dengan</i> <code>/afk on &lt;alasan&gt;</code>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    if (aksi === 'off') {
+      const hasil = orderService.setAfk(false);
+
+      ctx.reply(
+        `☀️ <b>Status AFK dimatikan</b>\n\n` +
+          `<i>Pembeli tidak akan menerima pesan AFK lagi.</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    if (aksi === 'on') {
+      const alasan = parts.slice(1).join(' ').trim();
+
+      if (!alasan) {
+        ctx.reply(
+          formatError('Masukkan alasan AFK.\n\nContoh: <code>/afk on sedang istirahat</code>'),
+          { parse_mode: 'HTML' }
+        );
+        return;
+      }
+
+      const hasil = orderService.setAfk(true, alasan);
+
+      ctx.reply(
+        `🌙 <b>Status AFK diaktifkan</b>\n\n` +
+          `<b>Alasan:</b> ${escapeHtml(hasil.afkReason)}\n\n` +
+          `<i>Pembeli yang mengirim bukti transfer akan menerima pemberitahuan ini.</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
+    ctx.reply(
+      formatError(
+        'Format salah.\n\n' +
+          '<code>/afk on &lt;alasan&gt;</code> — aktifkan\n' +
+          '<code>/afk off</code> — matikan\n' +
+          '<code>/afk</code> — lihat status'
+      ),
       { parse_mode: 'HTML' }
     );
   });

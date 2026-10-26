@@ -60,13 +60,13 @@ function getOrdersFile() {
 
 /**
  * Baca settings.json
- * @returns {{profit: number, qrisPath: string}}
+ * @returns {{profit: number, qrisPath: string, afk: boolean, afkReason: string}}
  */
 function readSettings() {
+  const def = { profit: 0, qrisPath: DEFAULT_QRIS_PATH, afk: false, afkReason: '' };
   try {
     const filePath = getSettingsFile();
     if (!fs.existsSync(filePath)) {
-      const def = { profit: 0, qrisPath: DEFAULT_QRIS_PATH };
       fs.writeFileSync(filePath, JSON.stringify(def, null, 2), 'utf-8');
       return def;
     }
@@ -75,10 +75,12 @@ function readSettings() {
     return {
       profit: Number.isFinite(Number(data.profit)) ? Number(data.profit) : 0,
       qrisPath: typeof data.qrisPath === 'string' && data.qrisPath ? data.qrisPath : DEFAULT_QRIS_PATH,
+      afk: Boolean(data.afk),
+      afkReason: typeof data.afkReason === 'string' ? data.afkReason : '',
     };
   } catch (err) {
     console.error('[orderService] Error membaca settings.json:', err.message);
-    return { profit: 0, qrisPath: DEFAULT_QRIS_PATH };
+    return def;
   }
 }
 
@@ -112,6 +114,31 @@ function setProfit(amount) {
   settings.profit = Math.max(0, Math.floor(Number(amount) || 0));
   writeSettings(settings);
   return settings.profit;
+}
+
+
+/**
+ * Aktifkan / matikan status AFK admin.
+ *
+ * @param {boolean} aktif
+ * @param {string} [alasan]
+ * @returns {{afk: boolean, afkReason: string}}
+ */
+function setAfk(aktif, alasan) {
+  const settings = readSettings();
+  settings.afk = Boolean(aktif);
+  settings.afkReason = aktif ? String(alasan || '').trim() : '';
+  writeSettings(settings);
+  return { afk: settings.afk, afkReason: settings.afkReason };
+}
+
+/**
+ * Status AFK admin saat ini.
+ * @returns {{afk: boolean, afkReason: string}}
+ */
+function getAfk() {
+  const s = readSettings();
+  return { afk: s.afk, afkReason: s.afkReason };
 }
 
 /**
@@ -561,6 +588,8 @@ module.exports = {
   setStatus,
   cancelOrder,
   readSettings,
+  setAfk,
+  getAfk,
   getRevenue,
   setSellerReward,
   setResellerReward,

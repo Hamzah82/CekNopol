@@ -190,6 +190,24 @@ function buildGuide() {
     `<i>Semua admin bisa memakai.</i>`,
     ``,
     `─────────────────────`,
+    `<b>🌙 STATUS AFK</b>`,
+    ``,
+    `<code>/afk on &lt;alasan&gt;</code> — tandai admin sedang AFK`,
+    `<code>/afk off</code> — kembali aktif`,
+    `<code>/afk</code> — lihat status`,
+    ``,
+    `Saat AFK aktif, pembeli yang mengirim bukti transfer akan`,
+    `menerima pesan tambahan berisi alasan + imbauan bersabar.`,
+    ``,
+    `Status sekarang: ${
+      orderService.getAfk().afk
+        ? `🌙 <b>AFK</b> — ${orderService.getAfk().afkReason || '-'}`
+        : '☀️ <b>AKTIF</b>'
+    }`,
+    ``,
+    `<i>Hanya owner.</i>`,
+    ``,
+    `─────────────────────`,
     `<b>📢 BROADCAST</b>`,
     ``,
     `<code>/broadcast</code> — sebar pesan ke semua user`,
