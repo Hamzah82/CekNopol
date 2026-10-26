@@ -43,6 +43,37 @@ function normalizeKey(raw) {
   return raw.replace(/\s+/g, '').toUpperCase();
 }
 
+/**
+ * Normalisasi untuk PLAT NOMOR.
+ * Beda spasi dianggap SAMA (spasi dihapus, huruf kecil/besar disamakan).
+ * Contoh: "B 1234 XYZ" == "b1234xyz" == "B1234XYZ"
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+function normalizePlatKey(raw) {
+  return String(raw || '').replace(/\s+/g, '').toUpperCase();
+}
+
+/**
+ * Normalisasi untuk NAMA.
+ * Huruf besar/kecil dianggap SAMA, tetapi SPASI tetap dipertahankan
+ * (hanya dirapikan menjadi satu spasi).
+ * Contoh:
+ *   "budi santoso" == "BUDI SANTOSO"   (beda kapital -> sama)
+ *   "BUDI SANTOSO" != "BUDISANTOSO"    (beda spasi -> beda)
+ *   "BUDI  SANTOSO" == "BUDI SANTOSO"  (spasi berlebih dirapikan)
+ *
+ * @param {string} raw
+ * @returns {string}
+ */
+function normalizeNamaKey(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+}
+
 // ─── Cache Plat (db/plat.json) ───────────────────────────────
 
 function getCachedPlat(platNormalized) {
@@ -112,19 +143,7 @@ function saveToCacheNik2kk(nikNormalized, data) {
   writeJsonFile('nik2kk.json', cache);
 }
 
-module.exports = {
-  setDbPath,
-  normalizeKey,
-  // Plat
-  getCachedPlat,
-  saveToCachePlat,
-  // Nama
-  getCachedNama,
-  saveToCacheNama,
-  // Nik2kk
-  getCachedNik2kk,
-  saveToCacheNik2kk,
-};// ─── Cache Nomor HP (db/nomor.json) ──────────────────────────
+// ─── Cache Nomor HP (db/nomor.json) ──────────────────────────
 
 /**
  * Cek apakah nomor HP ada di cache
@@ -183,6 +202,8 @@ function saveToCacheKK(nokkNormalized, data) {
 module.exports = {
   setDbPath,
   normalizeKey,
+  normalizePlatKey,
+  normalizeNamaKey,
   // Plat
   getCachedPlat,
   saveToCachePlat,

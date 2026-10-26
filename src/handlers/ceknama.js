@@ -159,7 +159,8 @@ function register(bot) {
     cooldownService.mark(userId);
 
     // 3. Normalisasi nama (hapus spasi, uppercase)
-    const namaNormalized = cache.normalizeKey(nama);
+    // Nama: kapital disamakan, tetapi spasi tetap dipertahankan
+    const namaNormalized = cache.normalizeNamaKey(nama);
 
     // Kirim pesan loading (dihapus setelah selesai)
     const loader = await sendLoading(ctx);

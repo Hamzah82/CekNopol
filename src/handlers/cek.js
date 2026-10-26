@@ -2,7 +2,7 @@
  * cek.js — Handler /ceknopol <platNomor>
  */
 
-const { isValidPlat, normalizePlat } = require('../utils/validator');
+const { isValidPlat } = require('../utils/validator');
 const { formatKendaraan, formatError } = require('../utils/format');
 const tokenManager = require('../services/tokenManager');
 const cache = require('../services/cache');
@@ -164,7 +164,8 @@ function register(bot) {
     cooldownService.mark(userId);
 
     // 4. Normalisasi plat
-    const platNormalized = normalizePlat(rawPlat);
+    // Plat: beda spasi dianggap sama
+    const platNormalized = cache.normalizePlatKey(rawPlat);
 
     // Kirim pesan loading (dihapus setelah selesai)
     const loader = await sendLoading(ctx);
