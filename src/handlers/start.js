@@ -102,6 +102,7 @@ function buildCommands() {
     layanan.push(
       `<b>/ceknama</b> &lt;nama&gt;`,
       `Cari data kependudukan berdasarkan nama orang.`,
+      `⚠️ Masukkan nama <b>LENGKAP</b> sesuai KTP / KK agar data ditemukan.`,
       `<i>Contoh: /ceknama BUDI SANTOSO</i>`,
       ``
     );
@@ -243,7 +244,7 @@ function buildFormat() {
     `<code>/ceknopol B1234XYZ</code>`,
     `<code>/ceknopol AB123CD</code>`,
     ``,
-    `<b>Nama</b>`,
+    `<b>Nama</b> — harus LENGKAP sesuai KTP / KK`,
     `<code>/ceknama BUDI SANTOSO</code>`,
     ``,
     `<b>NIK</b> (16 digit)`,
