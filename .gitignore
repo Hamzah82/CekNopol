@@ -30,4 +30,4 @@ Thumbs.db
 *.swp
 *.swo
 .idea/
-.vscode/
+.vscode/__pycache__/
