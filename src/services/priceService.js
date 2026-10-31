@@ -22,11 +22,12 @@ const path = require('path');
  * Nama command yang dipakai user boleh beda (mis. /cekKK), tapi kunci
  * internalnya tetap 'cekkk'.
  */
-const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor', 'cekkk'];
+const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor', 'cekkk', 'cekkampus'];
 
 /** Nama command tampilan (bila beda dari kunci internal) */
 const SERVICE_COMMANDS = {
   cekkk: 'cekKK',
+  cekkampus: 'cekKampus',
 };
 
 /** Label tampilan tiap layanan */
@@ -36,6 +37,7 @@ const SERVICE_LABELS = {
   nik2kk: 'NIK ke KK',
   ceknomor: 'Cek Nomor HP',
   cekkk: 'Cek KK',
+  cekkampus: 'Cek Kampus',
 };
 
 /** Harga default (token) untuk semua layanan */

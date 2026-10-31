@@ -17,6 +17,7 @@ const setlogHandler = require('./handlers/setlog');
 const statsHandler = require('./handlers/stats');
 const cleardepoHandler = require('./handlers/cleardepo');
 const cekkkHandler = require('./handlers/cekkk');
+const cekkampusHandler = require('./handlers/cekkampus');
 const sellerHandler = require('./handlers/seller');
 const giveHandler = require('./handlers/give');
 const backupHandler = require('./handlers/backup');
@@ -74,6 +75,7 @@ function createBot(config) {
   // Inisialisasi admin IDs untuk handler token
   tokenHandler.initAdmins(config.adminIds || []);
   adminHandler.initSetupAdmins(config.adminIds || []);
+  refundService.setDbPath(dbPath);
   refundService.initSetupAdmins(config.adminIds || []);
   buyHandler.initSetupAdmins(config.adminIds || []);
   adminmenuHandler.initSetupAdmins(config.adminIds || []);
@@ -86,6 +88,7 @@ function createBot(config) {
   statsHandler.initSetupAdmins(config.adminIds || []);
   cleardepoHandler.initSetupAdmins(config.adminIds || []);
   cekkkHandler.initSetupAdmins(config.adminIds || []);
+  cekkampusHandler.initSetupAdmins(config.adminIds || []);
   sellerHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
   resellerHandler.initSetupAdmins(config.adminIds || [], config.botUsername || '');
   giveHandler.initSetupAdmins(config.adminIds || []);
@@ -108,6 +111,7 @@ function createBot(config) {
   statsHandler.register(bot);
   cleardepoHandler.register(bot);
   cekkkHandler.register(bot);
+  cekkampusHandler.register(bot);
   sellerHandler.register(bot);
   giveHandler.register(bot);
   backupHandler.register(bot);

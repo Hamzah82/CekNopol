@@ -112,7 +112,7 @@ for (const file of dbFiles) {
       defaultContent = JSON.stringify({ profit: 0, qrisPath: 'assets/qris.jpg' }, null, 2);
     } else if (file === 'services.json') {
       defaultContent = JSON.stringify(
-        { ceknopol: true, ceknama: true, nik2kk: true, ceknomor: true, cekkk: true },
+        { ceknopol: true, ceknama: true, nik2kk: true, ceknomor: true, cekkk: true, cekkampus: true },
         null,
         2
       );

@@ -4,11 +4,17 @@
 
 const tokenManager = require('./tokenManager');
 
+let dbPath = './db';
+
 /** @type {number[]} */
 let setupAdminIds = [];
 
 /** Index rotasi penerima token (agar adil jika admin lebih dari 1) */
 let rotateIndex = 0;
+
+function setDbPath(basePath) {
+  dbPath = basePath;
+}
 
 /**
  * Inisialisasi main admin IDs dari setup.json
@@ -75,4 +81,4 @@ function transferCacheToken({ userId, amount, command, query }) {
   return { transferred: true, recipientId, notification };
 }
 
-module.exports = { initSetupAdmins, getMainAdmins, transferCacheToken };
+module.exports = { setDbPath, initSetupAdmins, getMainAdmins, transferCacheToken };

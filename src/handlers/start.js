@@ -137,6 +137,19 @@ function buildCommands() {
     );
   }
 
+  if (serviceToggle.isEnabled('cekkampus')) {
+    layanan.push(
+      `<b>/cekKampus</b> &lt;NIM / Nama&gt;`,
+      `Cari data kuliah mahasiswa di PDDikti — perguruan tinggi,`,
+      `program studi, jenjang, dan status.`,
+      `⚠️ Data hanya ditampilkan bila <b>persis sama</b>. Bila tidak,`,
+      `token tidak terpotong.`,
+      `<i>Contoh: /cekKampus 26081010214</i>`,
+      `<i>Contoh: /cekKampus AWANGKU MUHAMMAD HAMZAH</i>`,
+      ``
+    );
+  }
+
   if (layanan.length) {
     L.push(`<b>🔍 LAYANAN PENCARIAN</b>`, ``, ...layanan);
   }
@@ -249,6 +262,10 @@ function buildFormat() {
     ``,
     `<b>NIK</b> (16 digit)`,
     `<code>/nik2kk 1277031234560006</code>`,
+    ``,
+    `<b>NIM / Nama Kampus</b>`,
+    `<code>/cekKampus 26081010214</code>`,
+    `<code>/cekKampus AWANGKU MUHAMMAD HAMZAH</code>`,
     ``,
     `<b>Nomor HP</b>`,
     `<code>/ceknomor 08123456789</code>`,

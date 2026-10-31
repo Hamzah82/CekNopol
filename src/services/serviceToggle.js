@@ -18,11 +18,12 @@ const fs = require('fs');
 const path = require('path');
 
 /** Layanan yang bisa di-toggle (kunci internal huruf kecil) */
-const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor', 'cekkk'];
+const SERVICES = ['ceknopol', 'ceknama', 'nik2kk', 'ceknomor', 'cekkk', 'cekkampus'];
 
 /** Nama command tampilan */
 const SERVICE_COMMANDS = {
   cekkk: 'cekKK',
+  cekkampus: 'cekKampus',
 };
 
 let dbPath = './db';
