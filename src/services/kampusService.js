@@ -11,12 +11,9 @@
  *   sebagai pengaman kedua.
  */
 
-const path = require('path');
-const { execFile } = require('child_process');
-
-/** Lokasi skrip scraper (di luar project) */
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 
 const SKRIP_KANDIDAT = [
   path.join(__dirname, '..', '..', 'scripts', 'pddikti_scraper.py'),
