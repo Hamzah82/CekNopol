@@ -121,6 +121,31 @@ function register(bot) {
     const userId = ctx.from.id;
     const arg = ctx.message.text.replace(/^\/cekKampus(@\w+)?\s*/i, '').trim();
 
+    // ─── Toggle layanan: enable / disable (main admin) ──────
+    if (/^(enable|disable)(\s|$)/i.test(arg)) {
+      const serviceToggle = require('../services/serviceToggle');
+      if (!isMainAdmin(userId)) {
+        return; // bukan admin -> diam total, tanpa jejak
+      }
+
+      const aksi = arg.toLowerCase().startsWith('enable') ? true : false;
+      const hasil = serviceToggle.setEnabled('cekkampus', aksi);
+
+      if (!hasil.success) {
+        ctx.reply(formatError(hasil.error), { parse_mode: 'HTML' });
+        return;
+      }
+
+      ctx.reply(
+        (aksi ? '✅' : '🚫') +
+          ` <b>Layanan cek kampus ${aksi ? 'DIAKTIFKAN' : 'DIMATIKAN'}</b>\n\n` +
+          `Command: <code>/cekKampus</code>\n` +
+          `<i>${aksi ? 'User sudah bisa memakai lagi.' : 'User tidak akan mendapat balasan apa pun.'}</i>`,
+        { parse_mode: 'HTML' }
+      );
+      return;
+    }
+
     // ─── Setprice (main admin) ──────────────────────────────
     if (/^setprice(\s|$)/i.test(arg)) {
       if (!isMainAdmin(userId)) {
