@@ -79,7 +79,11 @@ function jalankanScraper(query) {
     execFile(
       'python3',
       [SKRIP, query, '--json'],
-      { timeout: TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
+      {
+        timeout: TIMEOUT_MS,
+        maxBuffer: 4 * 1024 * 1024,
+        env: { ...process.env, PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin' },
+      },
       (err, stdout, stderr) => {
         // Skrip mengembalikan exit code 0 walau data kosong,
         // jadi error di sini berarti masalah nyata (timeout, crash, dll).
@@ -99,8 +103,9 @@ function jalankanScraper(query) {
             return resolve({ ok: false, error: 'Tidak dapat terhubung ke PDDikti.' });
           }
 
-          console.error('[kampusService] scraper gagal:', pesan.slice(0, 300));
-          return resolve({ ok: false, error: 'Gagal mengambil data dari PDDikti.' });
+          console.error('[kampusService] scraper gagal:', pesan.slice(0, 400));
+          // tampilkan pesan asli (terpotong) agar penyebab sebenarnya terlihat
+          return resolve({ ok: false, error: pesan.slice(0, 200) || 'Gagal mengambil data dari PDDikti.' });
         }
 
         // Skrip Python tidak mengeluarkan JSON sama sekali ketika tidak ada

@@ -29,8 +29,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import random as _random
 import re
+import subprocess
 import sys
+import time as _time
 import unicodedata
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
@@ -52,16 +55,37 @@ BASE_URL = "https://pddikti.kemdiktisaintek.go.id"
 API_SEARCH = BASE_URL + "/api/pencarian/mhs/{nama}"
 API_DETAIL = BASE_URL + "/api/detail/mhs/{id}"
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
-    "Referer": BASE_URL + "/",
-    "Origin": BASE_URL,
-}
+USER_AGENTS_HEADER = [
+    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+]
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:125.0) Gecko/20100101 Firefox/125.0",
+]
+
+def buat_headers() -> dict:
+    ua = _random.choice(USER_AGENTS)
+    return {
+        "User-Agent": ua,
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": BASE_URL + "/",
+        "Origin": BASE_URL,
+        "Connection": "keep-alive",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+    }
+
+# Header default (akan di-overwrite per request di _get_json)
+HEADERS = buat_headers()
 
 TIMEOUT = 30
 
@@ -138,27 +162,100 @@ class PddiktiError(Exception):
     """Kesalahan saat mengakses PDDikti."""
 
 
-def _get_json(url: str, sesi: requests.Session) -> Dict[str, Any]:
-    try:
-        resp = sesi.get(url, headers=HEADERS, timeout=TIMEOUT)
-    except requests.exceptions.Timeout:
-        raise PddiktiError("Koneksi ke PDDikti timeout. Coba lagi nanti.")
-    except requests.exceptions.ConnectionError:
-        raise PddiktiError("Tidak dapat terhubung ke PDDikti. Periksa koneksi internet.")
+MAX_RETRY = 4          # total percobaan
+BACKOFF_BASE = 1.5     # detik; jeda tumbuh eksponensial
 
-    if resp.status_code == 403:
-        raise PddiktiError(
-            "Akses ditolak (403). PDDikti mungkin sedang membatasi permintaan."
-        )
-    if resp.status_code == 404:
-        raise PddiktiError("Endpoint tidak ditemukan (404).")
-    if resp.status_code != 200:
+
+def _warmup(sesi: requests.Session) -> None:
+    """Buka halaman utama PDDikti sekali agar session cookie terbentuk.
+    WAF PDDikti kadang menolak request API langsung tanpa cookie."""
+    try:
+        sesi.get(BASE_URL + "/", headers=buat_headers(), timeout=15)
+    except Exception:
+        pass
+
+
+def _curl_get_json(url: str) -> Dict[str, Any]:
+    """Fallback: pakai curl — fingerprint TLS berbeda dari requests,
+    sering lolos WAF yang memblokir python-requests."""
+    cmd = [
+        "curl", "-s", "-L", "--compressed", url,
+        "-H", "Accept: application/json, text/plain, */*",
+        "-H", "Accept-Language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+        "-H", "Referer: " + BASE_URL + "/",
+        "-H", "Origin: " + BASE_URL,
+        "-H", _random.choice(USER_AGENTS_HEADER),
+        "-H", "Sec-Fetch-Dest: empty",
+        "-H", "Sec-Fetch-Mode: cors",
+        "-H", "Sec-Fetch-Site: same-origin",
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT)
+    except Exception as e:
+        raise PddiktiError(f"curl gagal: {e}")
+    if result.returncode != 0 or not result.stdout.strip():
+        raise PddiktiError("curl gagal: " + (result.stderr[:150] or "output kosong"))
+    try:
+        return json.loads(result.stdout)
+    except ValueError:
+        raise PddiktiError("curl: respons bukan JSON: " + result.stdout[:150])
+
+
+def _get_json(url: str, sesi: requests.Session) -> Dict[str, Any]:
+    """GET JSON dengan retry + backoff.
+
+    Tahan terhadap 403/429/5xx dan timeout sementara dari PDDikti/WAF.
+    Pada 403 pertama kita tunggu lalu coba lagi — biasanya blokir
+    WAF bersifat sementara per-request, bukan permanen per-IP.
+    """
+    last_err = None
+    for percobaan in range(1, MAX_RETRY + 1):
+        try:
+            resp = sesi.get(url, headers=buat_headers(), timeout=TIMEOUT)
+        except requests.exceptions.Timeout:
+            last_err = PddiktiError("Koneksi ke PDDikti timeout.")
+            if percobaan < MAX_RETRY:
+                _time.sleep(BACKOFF_BASE * percobaan)
+                continue
+            raise last_err
+        except requests.exceptions.ConnectionError:
+            last_err = PddiktiError("Tidak dapat terhubung ke PDDikti.")
+            if percobaan < MAX_RETRY:
+                _time.sleep(BACKOFF_BASE * percobaan)
+                continue
+            raise last_err
+
+        # Sukses
+        if resp.status_code == 200:
+            try:
+                return resp.json()
+            except ValueError:
+                raise PddiktiError("Respons bukan JSON yang valid.")
+
+        # Yang bisa di-retry: 403 (WAF), 429 (rate limit), 5xx (server)
+        if resp.status_code in (403, 429) or resp.status_code >= 500:
+            last_err = PddiktiError(
+                f"Akses ditolak ({resp.status_code}). "
+                "PDDikti sedang membatasi permintaan."
+            )
+            if percobaan < MAX_RETRY:
+                _time.sleep(BACKOFF_BASE * percobaan)
+                continue
+            # Percobaan requests habis — coba via curl (TLS fingerprint beda)
+            try:
+                data_curl = _curl_get_json(url)
+                if isinstance(data_curl, dict):
+                    return data_curl
+            except PddiktiError:
+                pass
+            raise last_err
+
+        if resp.status_code == 404:
+            raise PddiktiError("Endpoint tidak ditemukan (404).")
+
         raise PddiktiError(f"HTTP {resp.status_code}: {resp.text[:200]}")
 
-    try:
-        return resp.json()
-    except ValueError:
-        raise PddiktiError("Respons bukan JSON yang valid.")
+    raise last_err or PddiktiError("Gagal setelah beberapa percobaan.")
 
 
 def cari_mahasiswa(nama: str, sesi: requests.Session) -> List[Dict[str, Any]]:
@@ -271,6 +368,7 @@ def proses(query_input: str, tampilkan_semua: bool = False,
     mode = deteksi_mode(query_input)
     jenis = "NIM" if mode == "nim" else "nama"
     sesi = requests.Session()
+    _warmup(sesi)
 
     if not keluarkan_json:
         print(f"\n[1/3] Mencari {jenis} \"{query_input}\" di PDDikti ...")
@@ -315,10 +413,14 @@ def proses(query_input: str, tampilkan_semua: bool = False,
         print(f"\n[2/3] Mengambil data detail ({len(target)} data) ...")
 
     semua_detail: List[Dict[str, Any]] = []
-    for item in target:
+    for idx, item in enumerate(target):
         id_mhs = item.get("id")
         if not id_mhs:
             continue
+        if idx > 0:
+            # jeda kecil + jitter agar tidak terlihat seperti bot saat
+            # mengambil banyak detail berturut-turut
+            _time.sleep(0.4 + _random.random() * 0.5)
         try:
             detail = ambil_detail(id_mhs, sesi)
             semua_detail.append(detail)
