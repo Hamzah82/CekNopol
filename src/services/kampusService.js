@@ -15,7 +15,16 @@ const path = require('path');
 const { execFile } = require('child_process');
 
 /** Lokasi skrip scraper (di luar project) */
-const SKRIP = '/home/nyx/work/dev/dumpPDDikti/pddikti_scraper.py';
+const fs = require('fs');
+const path = require('path');
+
+const SKRIP_KANDIDAT = [
+  path.join(__dirname, '..', '..', 'scripts', 'pddikti_scraper.py'),
+  path.join(process.cwd(), 'scripts', 'pddikti_scraper.py'),
+  '/home/nyx/work/dev/dumpPDDikti/pddikti_scraper.py',
+];
+
+const SKRIP = SKRIP_KANDIDAT.find((p) => fs.existsSync(p)) || SKRIP_KANDIDAT[0];
 
 /** Batas waktu pemanggilan skrip (ms) */
 const TIMEOUT_MS = 90 * 1000;
